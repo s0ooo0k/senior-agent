@@ -14,6 +14,10 @@ export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+  const [embedding, setEmbedding] = useState(false);
+  const [embeddingMessage, setEmbeddingMessage] = useState('');
+  const [embeddingStatic, setEmbeddingStatic] = useState(false);
+  const [staticMessage, setStaticMessage] = useState('');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,6 +59,72 @@ export default function AdminPage() {
     }
   };
 
+  const handleEmbedPrograms = async () => {
+    if (!parsedData || !parsedData.programs) return;
+
+    setEmbedding(true);
+    setEmbeddingMessage('프로그램 임베딩 및 Qdrant 저장 중...');
+
+    try {
+      const res = await fetch('/api/embed-programs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ programs: parsedData.programs }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '임베딩 실패');
+      }
+
+      setEmbeddingMessage(
+        `✅ ${data.success}개 프로그램이 Qdrant에 저장되었습니다!`
+      );
+    } catch (error) {
+      console.error(error);
+      setEmbeddingMessage(
+        error instanceof Error
+          ? `❌ ${error.message}`
+          : '❌ 임베딩에 실패했습니다.'
+      );
+    } finally {
+      setEmbedding(false);
+    }
+  };
+
+  const handleEmbedStaticData = async () => {
+    setEmbeddingStatic(true);
+    setStaticMessage('기존 데이터 임베딩 중...');
+
+    try {
+      const res = await fetch('/api/embed-static-data', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '임베딩 실패');
+      }
+
+      setStaticMessage(
+        `✅ ${data.success}개 프로그램 저장 완료! (일자리: ${data.breakdown.jobs}, 정책: ${data.breakdown.policies}, 교육: ${data.breakdown.educations})`
+      );
+    } catch (error) {
+      console.error(error);
+      setStaticMessage(
+        error instanceof Error
+          ? `❌ ${error.message}`
+          : '❌ 임베딩에 실패했습니다.'
+      );
+    } finally {
+      setEmbeddingStatic(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-10">
@@ -70,6 +140,41 @@ export default function AdminPage() {
             JSON 형식으로 저장합니다.
           </p>
         </header>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
+          <h2 className="text-xl font-semibold mb-4">기존 데이터 Qdrant 저장</h2>
+          <p className="mb-4 text-sm text-slate-200/70">
+            jobs.json, policies.json, educations.json 파일의 데이터를 Qdrant에
+            임베딩하여 저장합니다.
+          </p>
+
+          <button
+            onClick={handleEmbedStaticData}
+            disabled={embeddingStatic}
+            className="w-full rounded-full bg-blue-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {embeddingStatic ? '임베딩 중...' : '기존 데이터 Qdrant에 저장'}
+          </button>
+
+          {staticMessage && (
+            <div
+              className={`mt-4 rounded-xl p-4 ${
+                staticMessage.includes('❌')
+                  ? 'bg-rose-500/20 text-rose-200'
+                  : 'bg-emerald-500/20 text-emerald-200'
+              }`}
+            >
+              <p className="text-sm">{staticMessage}</p>
+            </div>
+          )}
+
+          {embeddingStatic && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-blue-300">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-300 border-t-transparent"></div>
+              <span className="text-sm">처리 중...</span>
+            </div>
+          )}
+        </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
           <h2 className="text-xl font-semibold mb-4">PDF 파일 업로드</h2>
@@ -130,7 +235,28 @@ export default function AdminPage() {
 
         {parsedData && (
           <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
-            <h2 className="text-xl font-semibold mb-4">추출된 프로그램</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">추출된 프로그램</h2>
+              <button
+                onClick={handleEmbedPrograms}
+                disabled={embedding}
+                className="rounded-full bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {embedding ? '임베딩 중...' : 'Qdrant에 저장'}
+              </button>
+            </div>
+
+            {embeddingMessage && (
+              <div
+                className={`mb-4 rounded-xl p-4 ${
+                  embeddingMessage.includes('❌')
+                    ? 'bg-rose-500/20 text-rose-200'
+                    : 'bg-emerald-500/20 text-emerald-200'
+                }`}
+              >
+                <p className="text-sm">{embeddingMessage}</p>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">

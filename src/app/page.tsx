@@ -7,14 +7,22 @@ import type {
   EducationItem,
   JobItem,
   PolicyItem,
+  ProgramItem,
   SeniorProfile,
 } from "@/types/domain";
 
 type JobRecommendation = { job: JobItem; score: number; reason: string };
+type ProgramRecommendation = {
+  program: ProgramItem;
+  score: number;
+  reason: string;
+};
 type RecommendationResponse = {
+  ragRecommendations?: ProgramRecommendation[];
   jobRecommendations: JobRecommendation[];
   policies: PolicyItem[];
   educations: EducationItem[];
+  source?: 'rag' | 'rule-based';
 };
 
 const initialAnswers = QUESTIONS.map(() => "");
@@ -420,6 +428,54 @@ export default function Home() {
 
             {recommendations ? (
               <div className="mt-4 space-y-5 text-sm text-slate-100">
+                {recommendations.source && (
+                  <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                    {recommendations.source === 'rag'
+                      ? '🔍 RAG 기반 추천 (벡터 검색)'
+                      : '📋 규칙 기반 추천'}
+                  </div>
+                )}
+
+                {recommendations.ragRecommendations &&
+                recommendations.ragRecommendations.length > 0 ? (
+                  <div>
+                    <p className="text-base font-semibold text-emerald-200">
+                      맞춤 프로그램 Top {recommendations.ragRecommendations.length}
+                    </p>
+                    <div className="mt-2 space-y-3">
+                      {recommendations.ragRecommendations.map((rec, idx) => (
+                        <div
+                          key={rec.program.id}
+                          className="rounded-2xl border border-white/10 bg-black/30 p-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm uppercase tracking-[0.2em] text-emerald-200/80">
+                                #{idx + 1}
+                              </div>
+                              <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-xs font-semibold text-emerald-200">
+                                {rec.program.type}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-300/70">
+                              적합도 {(rec.score ?? 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <p className="mt-1 text-lg font-semibold">
+                            {rec.program.title}
+                          </p>
+                          <p className="text-slate-200/80">{rec.reason}</p>
+                          <p className="mt-1 text-xs text-slate-300/70">
+                            {rec.program.region}
+                            {rec.program.benefits &&
+                              ` · ${rec.program.benefits}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div>
                   <p className="text-base font-semibold text-emerald-200">
                     일자리 Top 3
