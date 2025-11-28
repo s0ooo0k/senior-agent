@@ -63,6 +63,7 @@ export default function Home() {
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [readingResult, setReadingResult] = useState(false);
   const [micDisabled, setMicDisabled] = useState(false);
+  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false); // SMS 팝업 상태 추가
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
@@ -638,13 +639,12 @@ export default function Home() {
           </p>
         </div>
         <Button
-          variant="outline"
+          variant="primary"
           size="md"
-          onClick={speakResults}
-          disabled={!recommendations || readingResult}
-          icon={<Volume2 className="h-4 w-4" />}
+          onClick={() => setIsSmsModalOpen(true)} // 클릭 시 모달 열기
+          // disabled={!recommendations} // 필요하다면 이 disabled 로직을 다시 활성화할 수 있습니다.
         >
-          {readingResult ? "음성 안내 중..." : "추천 음성으로 듣기"}
+          채용 공고 문자 받기
         </Button>
       </div>
 
@@ -838,6 +838,63 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden text-slate-900">
+      {/* --- SMS 팝업(모달) UI 시작 --- */}
+      {isSmsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="glass relative w-full max-w-md rounded-2xl border border-white/40 bg-white/80 p-8 shadow-2xl">
+            <h2 className="text-2xl font-bold text-slate-900 mb-4">
+              채용 공고 문자 받기
+            </h2>
+            <p className="text-slate-600 mb-6">
+              전화번호를 입력하시면, 새로운 채용 공고가 등록될 때 문자로 알려드립니다.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="phone-input" className="text-sm font-semibold text-slate-700">
+                  전화번호 작성
+                </label>
+                <input
+                  id="phone-input"
+                  type="tel"
+                  placeholder="'-' 없이 숫자만 입력"
+                  className="mt-2 w-full rounded-xl border border-white/70 bg-white/90 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-[#5d8df4] focus:outline-none focus:ring-2 focus:ring-[#5d8df4]/20"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => {
+                    alert("채용 공고가 올라오면 문자 드리겠습니다!");
+                    setIsSmsModalOpen(false);
+                  }}
+                >
+                  문자 받기!
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => setIsSmsModalOpen(false)}
+                >
+                  취소
+                </Button>
+              </div>
+            </div>
+            
+            {/* 닫기 버튼 */}
+            <button 
+              onClick={() => setIsSmsModalOpen(false)}
+              className="absolute top-6 right-6 text-slate-500 hover:text-slate-800"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+      )}
+      {/* --- SMS 팝업(모달) UI 끝 --- */}
+      
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-10 -top-32 h-96 w-96 rounded-full bg-[#5d8df4]/14 blur-[120px]" />
         <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-white/50 blur-[110px]" />
