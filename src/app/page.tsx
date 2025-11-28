@@ -68,6 +68,7 @@ export default function Home() {
   const mediaChunksRef = useRef<Blob[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsSessionRef = useRef(0);
+  const ttsAbortRef = useRef<AbortController | null>(null);
 
   const answeredCount = useMemo(
     () => answers.filter((a) => a.trim()).length,
@@ -85,6 +86,10 @@ export default function Home() {
 
   const cancelTtsPlayback = () => {
     ttsSessionRef.current += 1;
+    if (ttsAbortRef.current) {
+      ttsAbortRef.current.abort();
+      ttsAbortRef.current = null;
+    }
     const audio = ttsAudioRef.current;
     if (audio) {
       if (!audio.paused) {
@@ -103,12 +108,23 @@ export default function Home() {
   ): Promise<"ended" | "stopped" | "cancelled"> => {
     cancelTtsPlayback();
     const sessionId = ttsSessionRef.current;
+    const controller = new AbortController();
+    ttsAbortRef.current = controller;
 
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        return "cancelled";
+      }
+      throw err;
+    }
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -120,6 +136,15 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     ttsAudioRef.current = audio;
+    ttsAbortRef.current = null;
+
+    if (ttsSessionRef.current !== sessionId) {
+      if (audio.src.startsWith("blob:")) {
+        URL.revokeObjectURL(audio.src);
+      }
+      ttsAudioRef.current = null;
+      return "cancelled";
+    }
 
     const result = await new Promise<"ended" | "stopped">(
       (resolve, reject) => {
@@ -132,6 +157,9 @@ export default function Home() {
           }
           if (ttsAudioRef.current === audio) {
             ttsAudioRef.current = null;
+          }
+          if (ttsAbortRef.current) {
+            ttsAbortRef.current = null;
           }
         };
 
