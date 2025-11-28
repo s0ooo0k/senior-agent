@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { QUESTIONS } from "@/constants/questions";
 import type {
@@ -416,76 +417,71 @@ export default function Home() {
   };
 
   const LandingView = () => (
-    <div className="grid min-h-[calc(100vh-160px)] items-center gap-12 lg:grid-cols-2">
-      <div className="space-y-6">
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-sm font-semibold text-[#5d8df4] shadow-sm">
-          <Sparkles className="h-4 w-4" />
-          음성만으로 인터뷰
-        </div>
-        <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
-          AI 기반 <br></br>시니어 커리어 설계 <br></br>{" "}
-          <span className="text-[#5d8df4]">음성</span>으로.
-        </h1>
-        <p className="text-lg leading-relaxed text-slate-600">
-          6개의 질문을 바탕으로 나만의 프로필 카드 생성
-          <br></br> 나에게 꼭 맞는 일자리·정책·교육을 추천합니다.
-        </p>
-        <div className="flex flex-wrap gap-3 text-sm">
-          <Badge variant="primary">커리어 재시작</Badge>
-          <Badge variant="secondary">새로운 직업</Badge>
-          <Badge variant="secondary">미래 설계</Badge>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleStart}
-            icon={<ArrowRight className="h-5 w-5" />}
-          >
-            바로 시작하기
-          </Button>
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => router.push("/browse")}
-          >
-            공고 살펴보기
-          </Button>
-        </div>
-      </div>
-
-      <div className="relative">
-        <div className="glass relative overflow-hidden rounded-3xl border border-white/70 p-8 shadow-2xl">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#5d8df4]/10 via-white to-white" />
-          <div className="relative space-y-6">
-            <div className="rounded-2xl bg-white/80 p-5 shadow-inner">
-              <p className="text-sm font-semibold text-slate-600">예시 질문</p>
-              <p className="mt-2 text-2xl font-bold leading-snug text-slate-900 break-keep">
-                {QUESTIONS[0]}
-              </p>
-              <p className="mt-3 text-sm text-slate-500">
-                버튼만 누르면 질문을 읽어드리고, 말씀하신 내용을 자동으로
-                받아적습니다.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="relative h-32 w-32">
-                <div className="absolute inset-0 rounded-full bg-[#5d8df4]/20 blur-2xl" />
-                <div className="relative flex h-full w-full items-center justify-center rounded-full bg-[#5d8df4] text-white shadow-[0_30px_80px_-40px_rgba(93,141,244,1)]">
-                  <Mic className="h-12 w-12" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-4 shadow-md">
-              <p className="text-sm font-semibold text-[#5d8df4]">목표</p>
-              <p className="text-slate-800">
-                모든 질문이 끝나면 자동으로 프로필과 추천 리스트를 만들어
-                드립니다.
-              </p>
-            </div>
+    <div className="relative overflow-hidden">
+      <div className="relative grid min-h-[calc(100vh-180px)] items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="space-y-5 lg:space-y-7">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-sm font-semibold text-[#5d8df4] shadow-sm backdrop-blur">
+            <Sparkles className="h-4 w-4" />
+            음성만으로 인터뷰
           </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#6c7ba4]">
+              시니어 커리어 내비게이션
+            </p>
+            <h1 className="text-4xl font-extrabold leading-tight text-slate-900 md:text-5xl lg:text-6xl">
+              AI 기반 <br className="hidden sm:block" />
+              시니어 커리어 설계 <br className="hidden sm:block" />
+              <span className="text-[#5d8df4]">음성</span>으로.
+            </h1>
+          </div>
+
+          <p className="text-lg leading-relaxed text-slate-600">
+            6개의 질문을 바탕으로 나만의 프로필 카드 생성
+            <br className="hidden md:block" /> 나에게 꼭 맞는 일자리·정책·교육을 추천합니다.
+          </p>
+
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Badge variant="primary">커리어 재시작</Badge>
+            <Badge variant="secondary">새로운 직업</Badge>
+            <Badge variant="secondary">미래 설계</Badge>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleStart}
+              icon={<ArrowRight className="h-5 w-5" />}
+            >
+              바로 시작하기
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => router.push("/browse")}
+            >
+              공고 살펴보기
+            </Button>
+          </div>
+        </div>
+
+        <div className="relative h-full min-h-[560px]">
+          <Image
+            src="/mascot-ribbon.png"
+            alt="리본을 든 러닝 캐릭터"
+            width={340}
+            height={340}
+            priority
+            className="absolute left-[-10%] top-[10%] drop-shadow-[0_40px_120px_-60px_rgba(69,110,220,0.45)]"
+          />
+          <Image
+            src="/mascot-run.png"
+            alt="뛰는 캐릭터"
+            width={340}
+            height={340}
+            className="absolute right-[6%] top-[42%] hidden md:block scale-[0.96] drop-shadow-[0_32px_100px_-70px_rgba(69,110,220,0.45)]"
+          />
         </div>
       </div>
     </div>
