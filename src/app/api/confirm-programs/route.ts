@@ -87,9 +87,8 @@ export async function POST(request: NextRequest) {
     try {
       const phoneNumber = process.env.ADMIN_PHONE_NUMBER;
       if (phoneNumber) {
-        // Qdrant에 저장된 프로그램 정보를 바탕으로 동적 메시지 생성
-        const messageBody = `귀하의 프로필에 알맞은 채용공고가 ${programs.length}개 올라왔습니다!
-${programs.map((p, index) => `${index + 1}. ${p.title}`).join('\n')}`;
+        // LMS 발송 방지를 위해 메시지 내용을 짧게 수정
+        const messageBody = "채용공고가 올라왔습니다!";
 
         // 비동기적으로 SMS 발송
         sendSms(phoneNumber, messageBody)

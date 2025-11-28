@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOpenAIClient, createUpstageEmbedding } from "@/lib/openai-client";
 import { getQdrantClient, COLLECTION_NAME } from "@/lib/qdrant-client";
-import { sendSms } from "@/lib/sms";
 import {
   filterEducations,
   filterJobs,
@@ -327,31 +326,6 @@ ${programTexts}
             educations: matchedEducations,
             source: 'rule-based' as const,
           };
-
-    // --- SMS 발송 코드 (관리자 알림 방식) ---
-    try {
-      // .env.local 파일에서 고정된 관리자 번호를 가져옵니다.
-      const adminPhoneNumber = process.env.ADMIN_PHONE_NUMBER;
-      
-      // 관리자 번호가 설정되어 있는 경우에만 SMS 발송
-      if (adminPhoneNumber) {
-        // 추천 결과를 문자열로 변환
-        const messageBody = `새로운 시니어 프로필 분석이 완료되었습니다.
-        
-- 추천 방식: ${finalRecommendations.source}
-- 일자리: ${finalRecommendations.source === 'rag' ? finalRecommendations.ragJobRecommendations.length : finalRecommendations.jobRecommendations.length}개
-- 정책: ${finalRecommendations.source === 'rag' ? finalRecommendations.ragPolicyRecommendations.length : finalRecommendations.policies.length}개
-- 교육: ${finalRecommendations.source === 'rag' ? finalRecommendations.ragEducationRecommendations.length : finalRecommendations.educations.length}개
-
-자세한 내용은 대시보드에서 확인해주세요.`;
-        
-        // 비동기적으로 SMS 발송 (응답을 지연시키지 않음)
-        sendSms(adminPhoneNumber, messageBody).catch(console.error);
-      }
-    } catch (smsError) {
-      console.error("SMS 발송 중 에러 발생 (추천 결과에는 영향 없음):", smsError);
-    }
-    // -------------------------
 
     return NextResponse.json(finalRecommendations);
   } catch (error) {
