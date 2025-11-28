@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ProgramItem } from '@/types/domain';
 import { createUpstageEmbedding } from '@/lib/openai-client';
 import { ensureCollection, COLLECTION_NAME } from '@/lib/qdrant-client';
+import { sendSms } from '@/lib/sms'; // SMS 발송 함수 import
 
 // 문자열 ID를 숫자 ID로 변환
 function generateNumericId(stringId: string): number {
@@ -82,8 +83,26 @@ export async function POST(request: NextRequest) {
 
     const successCount = embeddingResults.filter((r) => r.status === 'success').length;
 
+    // --- SMS 발송 코드 (동적 내용 생성) ---
+    try {
+      const phoneNumber = process.env.ADMIN_PHONE_NUMBER;
+      if (phoneNumber) {
+        // Qdrant에 저장된 프로그램 정보를 바탕으로 동적 메시지 생성
+        const messageBody = `귀하의 프로필에 알맞은 채용공고가 ${programs.length}개 올라왔습니다!
+${programs.map((p, index) => `${index + 1}. ${p.title}`).join('\n')}`;
+
+        // 비동기적으로 SMS 발송
+        sendSms(phoneNumber, messageBody)
+          .then(result => console.log("✅ SMS 발송 성공:", result))
+          .catch(error => console.error("❌ SMS 발송 실패:", error));
+      }
+    } catch (smsError) {
+      console.error("SMS 발송 중 에러 발생:", smsError);
+    }
+    // -------------------------
+
     return NextResponse.json({
-      message: `${successCount}개 프로그램이 Qdrant에 저장되었습니다!`,
+      message: `${successCount}개의 공고가`,
       total: programs.length,
       success: successCount,
       failed: programs.length - successCount,

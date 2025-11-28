@@ -67,6 +67,7 @@ export interface RankedRecommendation {
 
 export interface ProgramItem {
   id: string;
+  original_id?: string; // Qdrant 저장 시 원본 ID를 백업하기 위한 필드
   title: string;
   type: "job" | "policy" | "education" | "other";
   region: string;
