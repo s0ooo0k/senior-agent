@@ -137,24 +137,24 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-10">
         <header className="flex flex-col gap-3">
-          <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">
+          <p className="text-sm uppercase tracking-[0.35em] text-blue-600">
             Admin Panel
           </p>
-          <h1 className="text-3xl font-semibold sm:text-4xl">
+          <h1 className="text-3xl font-bold sm:text-4xl text-slate-800">
             PDF 문서 업로드 및 파싱
           </h1>
-          <p className="max-w-3xl text-lg text-slate-200/80">
-            PDF 파일을 업로드하면 자동으로 프로그램을 추출하고, Upstage Solar
-            Embedding으로 임베딩하여 Qdrant Vector DB에 저장합니다.
+          <p className="max-w-3xl text-lg text-slate-700 leading-relaxed">
+            PDF 파일을 업로드하면 Upstage Document Parser를 통해 자동으로 파싱하여
+            JSON 형식으로 저장합니다.
           </p>
         </header>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
-          <h2 className="text-xl font-semibold mb-4">기존 데이터 Qdrant 저장</h2>
-          <p className="mb-4 text-sm text-slate-200/70">
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">기존 데이터 Qdrant 저장</h2>
+          <p className="mb-6 text-sm text-slate-600 leading-relaxed">
             jobs.json, policies.json, educations.json 파일의 데이터를 Qdrant에
             임베딩하여 저장합니다.
           </p>
@@ -162,7 +162,7 @@ export default function AdminPage() {
           <button
             onClick={handleEmbedStaticData}
             disabled={embeddingStatic}
-            className="w-full rounded-full bg-blue-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-2xl bg-blue-600 px-5 py-4 text-lg font-bold text-white shadow-lg transition-transform hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {embeddingStatic ? '임베딩 중...' : '기존 데이터 Qdrant에 저장'}
           </button>
@@ -171,32 +171,32 @@ export default function AdminPage() {
             <div
               className={`mt-4 rounded-xl p-4 ${
                 staticMessage.includes('❌')
-                  ? 'bg-rose-500/20 text-rose-200'
-                  : 'bg-emerald-500/20 text-emerald-200'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-green-100 text-green-700'
               }`}
             >
-              <p className="text-sm">{staticMessage}</p>
+              <p className="text-sm font-medium">{staticMessage}</p>
             </div>
           )}
 
           {embeddingStatic && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-blue-300">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-300 border-t-transparent"></div>
-              <span className="text-sm">처리 중...</span>
+            <div className="mt-4 flex items-center justify-center gap-2 text-blue-600">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+              <span className="text-sm font-medium">처리 중...</span>
             </div>
           )}
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
-          <h2 className="text-xl font-semibold mb-4">PDF 파일 업로드</h2>
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">PDF 파일 업로드</h2>
 
           <div className="flex flex-col gap-4">
             <label
               htmlFor="pdf-upload"
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-8 transition hover:border-emerald-300/60 hover:bg-white/10"
+              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 transition hover:border-blue-500 hover:bg-blue-50"
             >
               <svg
-                className="h-12 w-12 text-emerald-300/80"
+                className="h-12 w-12 text-blue-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -208,10 +208,10 @@ export default function AdminPage() {
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                 />
               </svg>
-              <p className="mt-2 text-sm text-slate-200">
+              <p className="mt-2 text-sm font-medium text-slate-700">
                 클릭하여 PDF 파일 선택
               </p>
-              <p className="text-xs text-slate-400">PDF 파일만 업로드 가능합니다</p>
+              <p className="text-xs text-slate-500">PDF 파일만 업로드 가능합니다</p>
             </label>
 
             <input
@@ -227,18 +227,18 @@ export default function AdminPage() {
               <div
                 className={`rounded-xl p-4 ${
                   message.includes('실패') || message.includes('실패')
-                    ? 'bg-rose-500/20 text-rose-200'
-                    : 'bg-emerald-500/20 text-emerald-200'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-green-100 text-green-700'
                 }`}
               >
-                <p className="text-sm">{message}</p>
+                <p className="text-sm font-medium">{message}</p>
               </div>
             )}
 
             {uploading && (
-              <div className="flex items-center justify-center gap-2 text-emerald-300">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-300 border-t-transparent"></div>
-                <span className="text-sm">처리 중...</span>
+              <div className="flex items-center justify-center gap-2 text-blue-600">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+                <span className="text-sm font-medium">처리 중...</span>
               </div>
             )}
           </div>
@@ -281,24 +281,24 @@ export default function AdminPage() {
 
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-black/30 p-4">
-                  <p className="text-sm text-emerald-200/70">파일명</p>
-                  <p className="mt-1 font-mono text-sm">{parsedData.filename}</p>
+                <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                  <p className="text-sm font-medium text-slate-600">파일명</p>
+                  <p className="mt-1 font-mono text-sm text-slate-800">{parsedData.filename}</p>
                 </div>
 
-                <div className="rounded-xl bg-black/30 p-4">
-                  <p className="text-sm text-emerald-200/70">저장 시간</p>
-                  <p className="mt-1 font-mono text-sm">
+                <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                  <p className="text-sm font-medium text-slate-600">저장 시간</p>
+                  <p className="mt-1 font-mono text-sm text-slate-800">
                     {new Date(parsedData.timestamp).toLocaleString('ko-KR')}
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-black/30 p-4">
-                <p className="text-sm text-emerald-200/70 mb-2">
+              <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+                <p className="text-sm font-bold text-blue-700 mb-2">
                   총 {parsedData.programs.length}개 프로그램 발견
                 </p>
-                <p className="text-xs text-slate-400 font-mono">
+                <p className="text-xs text-slate-600 font-mono">
                   저장 위치: src/data/parsed/{parsedData.savedTo}
                 </p>
               </div>
@@ -307,80 +307,80 @@ export default function AdminPage() {
                 {parsedData.programs.map((program, idx) => (
                   <div
                     key={program.id}
-                    className="rounded-2xl border border-white/10 bg-black/30 p-4"
+                    className="rounded-xl border border-slate-100 bg-slate-50 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200">
+                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
                             {program.type}
                           </span>
-                          <span className="text-xs text-slate-400">#{idx + 1}</span>
+                          <span className="text-xs text-slate-500">#{idx + 1}</span>
                         </div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-bold text-slate-800 mb-2 break-keep">
                           {program.title}
                         </h3>
-                        <p className="text-sm text-slate-200/80 mb-3">
+                        <p className="text-sm text-slate-700 mb-3 leading-relaxed break-keep">
                           {program.description}
                         </p>
 
                         <div className="grid gap-2 text-sm">
                           {program.region && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">지역:</span>
-                              <span>{program.region}</span>
+                              <span className="font-medium text-slate-600 w-20">지역:</span>
+                              <span className="text-slate-700">{program.region}</span>
                             </div>
                           )}
                           {program.target_age && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">대상:</span>
-                              <span>{program.target_age}</span>
+                              <span className="font-medium text-slate-600 w-20">대상:</span>
+                              <span className="text-slate-700">{program.target_age}</span>
                             </div>
                           )}
                           {program.benefits && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">혜택:</span>
-                              <span>{program.benefits}</span>
+                              <span className="font-medium text-slate-600 w-20">혜택:</span>
+                              <span className="text-slate-700">{program.benefits}</span>
                             </div>
                           )}
                           {program.duration && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">기간:</span>
-                              <span>{program.duration}</span>
+                              <span className="font-medium text-slate-600 w-20">기간:</span>
+                              <span className="text-slate-700">{program.duration}</span>
                             </div>
                           )}
                           {program.deadline && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">마감:</span>
-                              <span>{program.deadline}</span>
+                              <span className="font-medium text-slate-600 w-20">마감:</span>
+                              <span className="text-slate-700">{program.deadline}</span>
                             </div>
                           )}
                           {program.cost && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">비용:</span>
-                              <span>{program.cost}</span>
+                              <span className="font-medium text-slate-600 w-20">비용:</span>
+                              <span className="text-slate-700">{program.cost}</span>
                             </div>
                           )}
                           {program.provider && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">제공:</span>
-                              <span>{program.provider}</span>
+                              <span className="font-medium text-slate-600 w-20">제공:</span>
+                              <span className="text-slate-700">{program.provider}</span>
                             </div>
                           )}
                           {program.contact && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">연락처:</span>
-                              <span>{program.contact}</span>
+                              <span className="font-medium text-slate-600 w-20">연락처:</span>
+                              <span className="text-slate-700">{program.contact}</span>
                             </div>
                           )}
                           {program.link && (
                             <div className="flex gap-2">
-                              <span className="text-emerald-200/70 w-20">링크:</span>
+                              <span className="font-medium text-slate-600 w-20">링크:</span>
                               <a
                                 href={program.link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-emerald-300 hover:underline"
+                                className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
                               >
                                 바로가기
                               </a>
@@ -388,12 +388,12 @@ export default function AdminPage() {
                           )}
                           {program.tags && program.tags.length > 0 && (
                             <div className="flex gap-2 mt-2">
-                              <span className="text-emerald-200/70 w-20">태그:</span>
+                              <span className="font-medium text-slate-600 w-20">태그:</span>
                               <div className="flex flex-wrap gap-1">
                                 {program.tags.map((tag, tagIdx) => (
                                   <span
                                     key={tagIdx}
-                                    className="rounded-full bg-white/10 px-2 py-0.5 text-xs"
+                                    className="rounded-full bg-slate-200 text-slate-700 px-2 py-0.5 text-xs font-medium"
                                   >
                                     {tag}
                                   </span>
@@ -408,11 +408,11 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <details className="rounded-xl bg-black/30 p-4">
-                <summary className="cursor-pointer text-sm text-emerald-200/70">
+              <details className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                <summary className="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900">
                   원본 JSON 보기
                 </summary>
-                <pre className="mt-3 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-200">
+                <pre className="mt-3 overflow-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
                   {JSON.stringify(parsedData.programs, null, 2)}
                 </pre>
               </details>
