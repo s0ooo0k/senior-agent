@@ -64,3 +64,22 @@ export interface RankedRecommendation {
   reason: string;
   type: "job" | "policy" | "education";
 }
+
+export interface ProgramItem {
+  id: string;
+  title: string;
+  type: "job" | "policy" | "education" | "other";
+  region: string;
+  target_age?: string;
+  description: string;
+  benefits?: string;
+  requirements?: string;
+  duration?: string;
+  cost?: string;
+  start_date?: string;
+  deadline?: string;
+  contact?: string;
+  link?: string;
+  tags?: string[];
+  provider?: string;
+}
