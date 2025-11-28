@@ -1,3 +1,5 @@
+import { readdir, readFile } from 'fs/promises';
+import { join } from 'path';
 import { NextResponse } from 'next/server';
 import { createUpstageEmbedding } from '@/lib/openai-client';
 import { ensureCollection, COLLECTION_NAME } from '@/lib/qdrant-client';
@@ -6,6 +8,8 @@ import type { JobItem, PolicyItem, EducationItem, ProgramItem } from '@/types/do
 import jobsData from '@/data/jobs.json';
 import policiesData from '@/data/policies.json';
 import educationsData from '@/data/educations.json';
+
+const PARSED_DIR = join(process.cwd(), 'src', 'data', 'parsed');
 
 // 문자열 ID를 숫자 ID로 변환
 function generateNumericId(stringId: string): number {
@@ -18,6 +22,60 @@ function generateNumericId(stringId: string): number {
   return Math.abs(hash);
 }
 
+const isSafeJson = (name: string) =>
+  name.endsWith('.json') && !name.includes('..') && !name.includes('/');
+
+async function loadParsedPrograms(): Promise<{
+  programs: ProgramItem[];
+  fileCounts: Record<string, number>;
+}> {
+  try {
+    const files = await readdir(PARSED_DIR);
+    const jsonFiles = files.filter(isSafeJson);
+
+    const programs: ProgramItem[] = [];
+    const fileCounts: Record<string, number> = {};
+
+    for (const file of jsonFiles) {
+      try {
+        const raw = await readFile(join(PARSED_DIR, file), 'utf-8');
+        const parsed = JSON.parse(raw);
+        let list: ProgramItem[] = [];
+
+        if (Array.isArray(parsed)) {
+          list = parsed as ProgramItem[];
+        } else if (
+          parsed &&
+          typeof parsed === 'object' &&
+          Array.isArray((parsed as { programs?: unknown }).programs)
+        ) {
+          list = (parsed as { programs: ProgramItem[] }).programs;
+        }
+
+        if (list.length > 0) {
+          const normalized = list.map((program, idx) => ({
+            type: program.type || 'other',
+            ...program,
+            id: program.id || `${file}-${idx}`,
+          })) as ProgramItem[];
+
+          programs.push(...normalized);
+          fileCounts[file] = normalized.length;
+        } else {
+          console.warn(`Parsed file ${file} has no programs array; skipping.`);
+        }
+      } catch (error) {
+        console.error(`Failed to read parsed file ${file}`, error);
+      }
+    }
+
+    return { programs, fileCounts };
+  } catch (error) {
+    console.warn('Parsed directory could not be read; continuing with base data only.', error);
+    return { programs: [], fileCounts: {} };
+  }
+}
+
 export async function POST() {
   try {
     // Qdrant 초기화
@@ -26,15 +84,20 @@ export async function POST() {
     const jobs = jobsData as JobItem[];
     const policies = policiesData as PolicyItem[];
     const educations = educationsData as EducationItem[];
+    const { programs: parsedPrograms, fileCounts } = await loadParsedPrograms();
 
     // 모든 데이터를 ProgramItem 형식으로 변환
-    const allPrograms: ProgramItem[] = [
+    const basePrograms: ProgramItem[] = [
       ...jobs.map(jobToProgram),
       ...policies.map(policyToProgram),
       ...educations.map(educationToProgram),
     ];
 
-    console.log(`총 ${allPrograms.length}개 프로그램 임베딩 시작...`);
+    const allPrograms: ProgramItem[] = [...basePrograms, ...parsedPrograms];
+
+    console.log(
+      `총 ${allPrograms.length}개 프로그램 임베딩 시작... (기본: ${basePrograms.length}, 파싱: ${parsedPrograms.length})`
+    );
 
     // 임베딩 및 저장
     const results = [];
@@ -98,6 +161,8 @@ export async function POST() {
         jobs: jobs.length,
         policies: policies.length,
         educations: educations.length,
+        parsed: parsedPrograms.length,
+        parsed_files: fileCounts,
       },
       results,
     });
@@ -164,9 +229,18 @@ async function generateProgramText(
   upstageApiKey?: string
 ): Promise<string> {
   // 구조화된 데이터 준비
+  const typeLabel =
+    program.type === 'job'
+      ? '일자리'
+      : program.type === 'policy'
+      ? '정책'
+      : program.type === 'education'
+      ? '교육'
+      : '기타';
+
   const structuredInfo: Record<string, string> = {
     제목: program.title,
-    유형: program.type === 'job' ? '일자리' : program.type === 'policy' ? '정책' : '교육',
+    유형: typeLabel,
     지역: program.region,
   };
 
