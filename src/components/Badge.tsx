@@ -14,7 +14,7 @@ const Badge: React.FC<BadgeProps> = ({
   className = '',
 }) => {
   const variantStyles = {
-    primary: 'bg-blue-100 text-blue-700',
+    primary: 'bg-[#eef3ff] text-[#4b6fd4]',
     secondary: 'bg-slate-100 text-slate-600',
     success: 'bg-green-100 text-green-700',
     warning: 'bg-orange-100 text-orange-700',

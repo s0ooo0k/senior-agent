@@ -10,11 +10,10 @@ import type {
   ProgramItem,
   SeniorProfile,
 } from "@/types/domain";
-import VoiceIndicator from "@/components/VoiceIndicator";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
-import { ArrowRight, Mic, ChevronRight } from "lucide-react";
+import { ArrowRight, Mic, Sparkles, Volume2 } from "lucide-react";
 
 type JobRecommendation = { job: JobItem; score: number; reason: string };
 type ProgramRecommendation = {
@@ -29,7 +28,7 @@ type RecommendationResponse = {
   jobRecommendations: JobRecommendation[];
   policies: PolicyItem[];
   educations: EducationItem[];
-  source?: 'rag' | 'rule-based';
+  source?: "rag" | "rule-based";
 };
 
 const initialAnswers = QUESTIONS.map(() => "");
@@ -76,7 +75,9 @@ export default function Home() {
   const [answers, setAnswers] = useState<string[]>(initialAnswers);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'speaking' | 'listening' | 'processing'>('idle');
+  const [voiceStatus, setVoiceStatus] = useState<
+    "idle" | "speaking" | "listening" | "processing"
+  >("idle");
   const [statusMsg, setStatusMsg] = useState<string>("");
   const [profile, setProfile] = useState<SeniorProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -88,20 +89,30 @@ export default function Home() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
 
-  const progressText = `${currentQuestion + 1}/${
-    QUESTIONS.length
-  } 질문 진행 중`;
+  const answeredCount = useMemo(
+    () => answers.filter((a) => a.trim()).length,
+    [answers],
+  );
+  const totalQuestions = QUESTIONS.length;
+  const currentQuestionSafe =
+    QUESTIONS[Math.min(currentQuestion, totalQuestions - 1)];
+  const progressPercent = Math.min(
+    100,
+    Math.round((answeredCount / totalQuestions) * 100),
+  );
+  const allAnswered = answeredCount >= totalQuestions;
+  const showResults = started && allAnswered;
 
   useEffect(() => {
-    if (started && currentQuestion < QUESTIONS.length) {
+    if (started && currentQuestion < totalQuestions) {
       speakCurrentQuestion();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started, currentQuestion]);
 
   useEffect(() => {
-    const allAnswered = answers.every((a) => a.trim().length > 0);
-    if (allAnswered && !profile && !loadingProfile) {
+    const done = answers.every((a) => a.trim().length > 0);
+    if (done && !profile && !loadingProfile) {
       generateProfile();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,29 +126,18 @@ export default function Home() {
   }, [profile]);
 
   const speakCurrentQuestion = async () => {
+    if (currentQuestion >= totalQuestions) return;
     const text = QUESTIONS[currentQuestion];
-    setVoiceStatus('speaking');
+    setVoiceStatus("speaking");
     setStatusMsg("질문을 읽는 중...");
     try {
       await playTts(text);
-      setVoiceStatus('idle');
+      setVoiceStatus("idle");
       setStatusMsg("녹음 버튼을 눌러 답변해주세요.");
     } catch (error) {
       console.error("TTS 에러:", error);
-      setVoiceStatus('idle');
+      setVoiceStatus("idle");
       setStatusMsg("음성 출력에 실패했습니다. 텍스트를 읽고 답변해주세요.");
-    }
-  };
-
-  const startInterview = async () => {
-    setStarted(true);
-    setStatusMsg("질문을 읽고 있습니다.");
-    try {
-      await speakCurrentQuestion();
-    } catch (error) {
-      console.error("인터뷰 시작 에러:", error);
-      setVoiceStatus('idle');
-      setStatusMsg("시작 중 오류가 발생했습니다. 계속 진행하시려면 녹음 버튼을 눌러주세요.");
     }
   };
 
@@ -163,11 +163,11 @@ export default function Home() {
       mediaRecorder.start();
       mediaRecorderRef.current = mediaRecorder;
       setRecording(true);
-      setVoiceStatus('listening');
+      setVoiceStatus("listening");
       setStatusMsg("녹음 중입니다. 말씀을 마치면 정지 버튼을 눌러주세요.");
     } catch (error) {
       console.error(error);
-      setVoiceStatus('idle');
+      setVoiceStatus("idle");
       setStatusMsg("마이크 접근이 허용되지 않았습니다. 권한을 확인해주세요.");
     }
   };
@@ -176,13 +176,13 @@ export default function Home() {
     if (mediaRecorderRef.current && recording) {
       mediaRecorderRef.current.stop();
       setRecording(false);
-      setVoiceStatus('processing');
+      setVoiceStatus("processing");
     }
   };
 
   const handleTranscription = async (blob: Blob) => {
     setTranscribing(true);
-    setVoiceStatus('processing');
+    setVoiceStatus("processing");
     setStatusMsg("음성을 텍스트로 변환 중...");
     try {
       const formData = new FormData();
@@ -198,17 +198,17 @@ export default function Home() {
         next[currentQuestion] = text || "(빈 응답)";
         return next;
       });
-      setVoiceStatus('idle');
+      setVoiceStatus("idle");
       setStatusMsg("음성 인식 완료! 잠시 후 다음 질문으로 넘어갑니다.");
 
       setTimeout(() => {
         setCurrentQuestion((prev) =>
-          prev + 1 < QUESTIONS.length ? prev + 1 : prev,
+          prev + 1 < totalQuestions ? prev + 1 : prev,
         );
       }, 700);
     } catch (error) {
       console.error(error);
-      setVoiceStatus('idle');
+      setVoiceStatus("idle");
       setStatusMsg("음성 인식에 실패했습니다. 다시 녹음해주세요.");
     } finally {
       setTranscribing(false);
@@ -224,7 +224,7 @@ export default function Home() {
       return next;
     });
     setCurrentQuestion((prev) =>
-      prev + 1 < QUESTIONS.length ? prev + 1 : prev,
+      prev + 1 < totalQuestions ? prev + 1 : prev,
     );
   };
 
@@ -288,19 +288,13 @@ export default function Home() {
     setReadingResult(false);
   };
 
-  const answeredCount = useMemo(
-    () => answers.filter((a) => a.trim()).length,
-    [answers],
-  );
-
   const handleStart = async () => {
     try {
-      // Request microphone permission early
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStarted(true);
       setStatusMsg("질문을 읽고 있습니다.");
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
         alert("서비스 이용을 위해 마이크 권한이 필요합니다.");
       } else {
         console.error("마이크 권한 에러:", error);
@@ -309,387 +303,500 @@ export default function Home() {
     }
   };
 
-  // Landing page (onboarding screen)
-  if (!started) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* App Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">리본 (Reborn)</h1>
-            <p className="text-blue-100 text-sm">
-              시니어 커리어 내비게이션
-            </p>
-          </div>
+  const LandingView = () => (
+    <div className="grid min-h-[calc(100vh-160px)] items-center gap-12 lg:grid-cols-2">
+      <div className="space-y-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-sm font-semibold text-[#5d8df4] shadow-sm">
+          <Sparkles className="h-4 w-4" />
+          음성만으로 인터뷰
+        </div>
+        <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
+          시니어 커리어 설계를 <span className="text-[#5d8df4]">음성</span>으로.
+        </h1>
+        <p className="text-lg leading-relaxed text-slate-600">
+          10개의 질문에 답하면 프로필을 만들고 일자리·정책·교육을 추천합니다.
+          애플·토스처럼 군더더기 없이 깔끔한 인터뷰 경험을 제공합니다.
+        </p>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Badge variant="primary">10문항 인터뷰</Badge>
+          <Badge variant="secondary">STT/TTS 자동화</Badge>
+          <Badge variant="secondary">LLM 추천</Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleStart}
+            icon={<ArrowRight className="h-5 w-5" />}
+          >
+            바로 시작하기
+          </Button>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => setStatusMsg("마이크 권한 허용 후 시작을 눌러주세요.")}
+          >
+            흐름 살펴보기
+          </Button>
+        </div>
+        <p className="text-sm text-slate-500">
+          부산·울산·경남 시니어 맞춤형. 마이크 권한만 허용하면 바로 사용할 수
+          있어요.
+        </p>
+      </div>
 
-          {/* Content */}
-          <div className="p-8 text-center">
-            <div className="bg-blue-50 p-8 rounded-2xl mb-8">
-              <p className="text-lg leading-relaxed text-slate-800 mb-6">
-                복잡한 입력 없이<br/>
-                <span className="font-bold text-blue-700 text-xl">목소리</span>로만 대화하세요.
+      <div className="relative">
+        <div className="glass relative overflow-hidden rounded-3xl border border-white/70 p-8 shadow-2xl">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#5d8df4]/10 via-white to-white" />
+          <div className="relative space-y-6">
+            <div className="rounded-2xl bg-white/80 p-5 shadow-inner">
+              <p className="text-sm font-semibold text-slate-600">예시 질문</p>
+              <p className="mt-2 text-2xl font-bold leading-snug text-slate-900 break-keep">
+                {QUESTIONS[0]}
               </p>
-              <div className="flex justify-center mb-6">
-                <div className="bg-white p-6 rounded-full shadow-lg">
-                  <Mic className="w-16 h-16 text-blue-600" />
+              <p className="mt-3 text-sm text-slate-500">
+                버튼만 누르면 질문을 읽어드리고, 말씀하신 내용을 자동으로 받아적습니다.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="relative h-32 w-32">
+                <div className="absolute inset-0 rounded-full bg-[#5d8df4]/20 blur-2xl" />
+                <div className="relative flex h-full w-full items-center justify-center rounded-full bg-[#5d8df4] text-white shadow-[0_30px_80px_-40px_rgba(93,141,244,1)]">
+                  <Mic className="h-12 w-12" />
                 </div>
               </div>
-              <p className="text-base text-slate-600 leading-relaxed">
-                10가지 질문에 답해주시면<br/>
-                딱 맞는 일자리를 찾아드립니다.
+              <p className="text-sm text-slate-600">
+                애플·토스 감성의 큰 마이크 버튼으로 선명한 인터뷰 경험.
               </p>
             </div>
 
-            <button
-              onClick={handleStart}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-5 rounded-2xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-3"
-            >
-              <span>시작하기</span>
-              <ArrowRight className="w-7 h-7" />
-            </button>
-
-            <p className="mt-6 text-slate-400 text-xs">
-              부산·울산·경남 시니어를 위한 맞춤형 서비스
-            </p>
+            <div className="rounded-2xl bg-white p-4 shadow-md">
+              <p className="text-sm font-semibold text-[#5d8df4]">목표</p>
+              <p className="text-slate-800">
+                모든 질문이 끝나면 자동으로 프로필과 추천 리스트를 만들어 드립니다.
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // Interview screen
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      {/* App Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-6 shadow-lg sticky top-0 z-10">
-        <div className="max-w-md mx-auto">
-          <p className="text-xs uppercase tracking-wider text-blue-100 mb-1">
-            Reborn
+  const InterviewView = () => (
+    <div className="flex flex-col items-center gap-6">
+      <div className="flex items-center gap-3 text-sm text-slate-600">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 font-bold text-[#5d8df4] shadow">
+          {currentQuestion + 1}
+        </span>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">
+            현재 질문
           </p>
-          <h1 className="text-xl font-bold text-white">
-            음성 기반 커리어 내비게이션
-          </h1>
+          <p className="text-sm font-semibold text-slate-800">
+            {currentQuestion + 1} / {totalQuestions}
+          </p>
         </div>
+        <div className="ml-4 h-2 w-28 overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-[#5d8df4] transition-all"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <span className="text-xs font-semibold text-slate-700">
+          {progressPercent}%
+        </span>
       </div>
 
-      <div className="mx-auto max-w-md px-4 py-6 flex flex-col gap-6">
-
-        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-sm text-slate-500">현재 진행</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {answeredCount < QUESTIONS.length
-                  ? progressText
-                  : "질문 완료"}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-blue-50 p-6 mb-6">
-            <p className="text-sm font-medium text-blue-600 mb-3">질문 {currentQuestion + 1} / {QUESTIONS.length}</p>
-            <p className="text-2xl font-bold leading-snug text-slate-800 break-keep mb-4">
-              {QUESTIONS[Math.min(currentQuestion, QUESTIONS.length - 1)]}
+      <section className="w-full flex justify-center px-4">
+        <div className="w-full max-w-5xl rounded-[36px] border border-white/40 bg-white/70 px-12 py-14 md:px-16 md:py-16 text-center backdrop-blur-2xl shadow-[0_30px_90px_-55px_rgba(93,141,244,0.55)]">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#5d8df4]">
+              질문 {currentQuestion + 1}
             </p>
-
-            {/* Voice Indicator */}
-            <VoiceIndicator status={voiceStatus} />
+            <h2 className="mt-2 text-3xl font-bold leading-tight text-slate-900 break-keep md:text-4xl">
+              {currentQuestionSafe}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              마이크 버튼을 눌러 답변을 말씀해주세요.
+            </p>
           </div>
 
-          <div className="flex flex-wrap gap-3 justify-center">
-            <button
-              onClick={speakCurrentQuestion}
-              className="rounded-xl border-2 border-blue-600 px-6 py-3 text-base font-bold text-blue-600 transition-colors hover:bg-blue-50"
-            >
-              질문 다시 듣기
-            </button>
+          <div className="mt-8 flex flex-col items-center gap-5">
             <button
               onClick={recording ? stopRecording : startRecording}
-              className={`rounded-xl px-6 py-3 text-base font-bold transition-transform active:scale-95 ${
+              className={`group relative h-32 w-32 rounded-full text-white shadow-[0_22px_70px_-35px_rgba(93,141,244,0.9)] transition-all duration-200 ${
                 recording
-                  ? "bg-red-500 text-white hover:bg-red-400"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+                  ? "bg-gradient-to-br from-[#ff6b6b] to-[#ff9671]"
+                  : "bg-[#5d8df4]"
               }`}
+              aria-label={recording ? "녹음 정지" : "녹음 시작"}
             >
-              {recording ? "녹음 정지" : "녹음 시작"}
-            </button>
-            <button
-              onClick={handleManualAdvance}
-              className="rounded-xl bg-slate-200 px-6 py-3 text-base font-bold text-slate-700 transition-colors hover:bg-slate-100"
-            >
-              답변 완료 / 다음으로
-            </button>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-600">현재 답변</p>
-              <textarea
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                rows={4}
-                value={answers[currentQuestion] ?? ""}
-                onChange={(e) =>
-                  setAnswers((prev) => {
-                    const next = [...prev];
-                    next[currentQuestion] = e.target.value;
-                    return next;
-                  })
-                }
-                placeholder="음성 인식 결과가 여기에 표시됩니다. 필요 시 직접 수정하세요."
+              <span
+                className="absolute inset-[-14px] rounded-full bg-[#5d8df4]/18 blur-2xl"
+                aria-hidden
               />
-              <div className="mt-2 text-xs text-slate-500">
-                {transcribing
-                  ? "음성 인식 중..."
-                  : recording
-                    ? "녹음 중입니다."
-                    : "녹음을 마치면 자동으로 채워집니다."}
+              <div className="relative flex h-full w-full items-center justify-center rounded-full">
+                <Mic className="h-12 w-12" />
               </div>
+            </button>
+            <p className="text-sm font-semibold text-slate-700">
+              {recording ? "녹음 중 · 눌러서 정지" : "버튼을 눌러 녹음을 시작하세요"}
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={speakCurrentQuestion}
+                icon={<Volume2 className="h-4 w-4" />}
+              >
+                질문 다시 듣기
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleManualAdvance}
+              >
+                건너뛰고 다음
+              </Button>
             </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-600">답변 현황</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {QUESTIONS.map((_, idx) => (
-                  <span
-                    key={idx}
-                    className={`rounded-full px-3 py-1 text-xs font-bold ${
-                      answers[idx]?.trim()
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-200 text-slate-600"
-                    }`}
-                  >
-                    Q{idx + 1} {answers[idx]?.trim() ? "완료" : "대기"}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-800">프로필 / 페르소나</h2>
-              {loadingProfile && (
-                <span className="text-sm text-blue-600">생성 중...</span>
-              )}
-            </div>
-            {profile ? (
-              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700">
-                <div className="rounded-xl bg-blue-50 p-4">
-                  <p className="text-base font-bold text-blue-700 break-keep">
-                    {profile.persona_summary}
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  <p>
-                    <strong className="text-slate-800">이전 경력:</strong>{" "}
-                    {profile.previous_job}
-                  </p>
-                  <p>
-                    <strong className="text-slate-800">주요 스킬:</strong>{" "}
-                    {profile.skills?.join(", ")}
-                  </p>
-                  <p>
-                    <strong className="text-slate-800">활동량/자세:</strong>{" "}
-                    {profile.activity_level} · {profile.work_posture}
-                  </p>
-                  <p>
-                    <strong className="text-slate-800">희망 근무:</strong>{" "}
-                    주 {profile.weekly_work_days}일 · {profile.salary_expectation}
-                  </p>
-                  <p>
-                    <strong className="text-slate-800">성향:</strong>{" "}
-                    {profile.social_preference} · {profile.learning_preference}
-                  </p>
-                  <p>
-                    <strong className="text-slate-800">디지털:</strong>{" "}
-                    {profile.digital_literacy}
-                  </p>
-                  <p>
-                    <strong className="text-slate-800">동기:</strong>{" "}
-                    {profile.motivation}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-slate-500">
-                10개 질문 답변이 끝나면 자동으로 프로필을 생성합니다.
-              </p>
-            )}
+            <p className="text-xs text-slate-500">
+              {statusMsg || "녹음 버튼을 눌러 답변해주세요."}
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-800">추천 결과</h2>
-              {loadingRecs && (
-                <span className="text-sm text-blue-600">계산 중...</span>
+          <p className="mt-6 text-xs text-slate-500">
+            {transcribing
+              ? "음성 인식 중..."
+              : recording
+                ? "녹음 중입니다."
+                : "녹음을 마치면 자동으로 다음 질문으로 이동합니다."}
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+
+  const ResultProfile = () => (
+    <Card className="glass border-white/60 shadow-2xl">
+      <div className="rounded-2xl bg-gradient-to-br from-[#5d8df4] via-[#6f9af6] to-[#4b7ae0] p-6 text-white shadow-lg">
+        <p className="text-sm opacity-80">프로필 요약</p>
+        <p className="mt-2 text-xl font-bold leading-snug break-keep">
+          {profile ? profile.persona_summary : "프로필을 생성하는 중입니다..."}
+        </p>
+      </div>
+      <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700">
+        {[
+          { label: "이전 경력", value: profile?.previous_job },
+          { label: "주요 스킬", value: profile?.skills?.join(", ") },
+          {
+            label: "활동/자세",
+            value: profile
+              ? `${profile.activity_level} · ${profile.work_posture}`
+              : undefined,
+          },
+          {
+            label: "희망 근무",
+            value: profile
+              ? `주 ${profile.weekly_work_days}일 · ${profile.salary_expectation}`
+              : undefined,
+          },
+          {
+            label: "성향",
+            value: profile
+              ? `${profile.social_preference} · ${profile.learning_preference}`
+              : undefined,
+          },
+          { label: "디지털", value: profile?.digital_literacy },
+          { label: "동기", value: profile?.motivation },
+        ].map((row, idx) => (
+          <div
+            key={idx}
+            className="grid grid-cols-[110px_1fr] items-start gap-2 rounded-xl bg-white/70 px-3 py-2"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {row.label}
+            </span>
+            <span className="text-slate-900">
+              {row.value || (loadingProfile ? "불러오는 중..." : "-")}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+
+  const ResultsView = () => (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d8df4]">
+            인터뷰 완료
+          </p>
+          <h2 className="text-3xl font-bold text-slate-900">
+            맞춤 프로필과 추천이 준비되었습니다.
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            생성형 AI가 프로필을 만들고, 데이터 기반으로 일자리·정책·교육을
+            추천합니다.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="md"
+          onClick={speakResults}
+          disabled={!recommendations || readingResult}
+          icon={<Volume2 className="h-4 w-4" />}
+        >
+          {readingResult ? "음성 안내 중..." : "추천 음성으로 듣기"}
+        </Button>
+      </div>
+
+      <div className="grid items-start gap-8 xl:grid-cols-[360px_1fr]">
+        <ResultProfile />
+
+        <div className="space-y-6">
+          <Card className="glass border-white/60 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">일자리 Top 3</h3>
+              {recommendations?.source && (
+                <Badge variant="primary" size="sm">
+                  {recommendations.source === "rag"
+                    ? "RAG 기반"
+                    : "규칙 기반"}
+                </Badge>
               )}
             </div>
-
             {recommendations ? (
-              <div className="mt-4 space-y-5 text-sm text-slate-700">
-                {recommendations.source && (
-                  <div className="rounded-lg bg-green-100 px-3 py-2 text-xs font-medium text-green-700">
-                    {recommendations.source === 'rag'
-                      ? '🔍 RAG 기반 추천 (벡터 검색)'
-                      : '📋 규칙 기반 추천'}
-                  </div>
-                )}
-
-                {/* RAG 일자리 추천 */}
-                {recommendations.ragJobRecommendations &&
-                recommendations.ragJobRecommendations.length > 0 ? (
-                  <div>
-                    <p className="text-base font-semibold text-emerald-200">
-                      맞춤 일자리 Top {recommendations.ragJobRecommendations.length}
-                    </p>
-                    <div className="mt-2 space-y-3">
-                      {recommendations.ragJobRecommendations.map((rec, idx) => (
-                        <div
-                          key={rec.program.id}
-                          className="rounded-xl border border-slate-100 bg-slate-50 p-4"
+              <div className="space-y-4">
+                {recommendations.jobRecommendations.map((rec, idx) => (
+                  <div
+                    key={rec.job.id}
+                    className="rounded-2xl border border-white/70 bg-white/80 p-5 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ${
+                            idx === 0
+                              ? "bg-[#5d8df4]/15 text-[#2f4fa8]"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              {idx === 0 && (
-                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
-                                  1순위 추천
-                                </span>
-                              )}
-                              {idx > 0 && (
-                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
-                                  {idx + 1}순위 추천
-                                </span>
-                              )}
-                              <span className="text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-                                {rec.program.type}
-                              </span>
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              적합도 {(rec.score ?? 0).toFixed(2)}
-                            </div>
-                          </div>
-                          <p className="text-lg font-bold text-slate-800 mb-2 break-keep">
-                            {rec.program.title}
-                          </p>
-                          <div className="bg-blue-50 p-3 rounded-xl mb-2">
-                            <p className="text-slate-700 font-medium leading-snug break-keep">
-                              {rec.reason}
-                            </p>
-                          </div>
-                          <p className="text-xs text-slate-500">
-                            {rec.program.region}
-                            {rec.program.benefits &&
-                              ` · ${rec.program.benefits}`}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div>
-                  <p className="text-base font-bold text-slate-800 mb-3">
-                    일자리 Top 3
-                  </p>
-                  <div className="mt-2 space-y-3">
-                    {recommendations.jobRecommendations.map((rec, idx) => (
-                      <div
-                        key={rec.job.id}
-                        className="rounded-xl border border-slate-100 bg-slate-50 p-4"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            {idx === 0 && (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
-                                1순위 추천
-                              </span>
-                            )}
-                            {idx > 0 && (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
-                                {idx + 1}순위 추천
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            적합도 {(rec.score ?? 0).toFixed(2)}
-                          </div>
-                        </div>
-                        <p className="text-lg font-bold text-slate-800 mb-2 break-keep">
+                          {idx + 1}순위
+                        </span>
+                        <p className="text-lg font-bold text-slate-900 break-keep">
                           {rec.job.title}
                         </p>
-                        <div className="bg-blue-50 p-3 rounded-xl mb-2">
-                          <p className="text-slate-700 font-medium leading-snug break-keep">
-                            {rec.reason}
-                          </p>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          {rec.job.region} · 주 {rec.job.work_days}일 ·{" "}
-                          {rec.job.activity_level} · {rec.job.posture} · 급여{" "}
-                          {formatSalary(rec.job)}
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        적합도 {(rec.score ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                      {rec.reason}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        {rec.job.region}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        주 {rec.job.work_days}일
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        {rec.job.activity_level}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        {rec.job.posture}
+                      </span>
+                      <span className="rounded-full bg-[#eef3ff] px-2.5 py-1 text-[#2f4fa8]">
+                        급여 {formatSalary(rec.job)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                추천을 준비하는 중입니다...
+              </p>
+            )}
+          </Card>
+
+          <Card className="glass border-white/60 shadow-lg">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <Badge variant="primary" size="sm">
+                    정책 추천
+                  </Badge>
+                  <p className="text-sm text-slate-600">지원금·혜택</p>
+                </div>
+                {recommendations ? (
+                  <div className="space-y-3">
+                    {recommendations.policies.map((p) => (
+                      <div
+                        key={p.id}
+                        className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm"
+                      >
+                        <p className="font-bold text-slate-900 break-keep">
+                          {p.title}
+                        </p>
+                        <p className="text-sm text-slate-700">{p.benefit}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          대상 {p.target_age} · 지역 {p.region}
                         </p>
                       </div>
                     ))}
+                    {!recommendations.policies.length && (
+                      <p className="text-sm text-slate-500">
+                        해당 조건에 맞는 정책을 찾지 못했습니다.
+                      </p>
+                    )}
                   </div>
-                </div>
-
-                <div>
-                  <p className="text-base font-bold text-slate-800 mb-3">
-                    정책 추천
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    정책 추천을 불러오는 중입니다...
                   </p>
-                  <ul className="mt-2 space-y-2">
-                    {recommendations.policies.map((p) => (
-                      <li
-                        key={p.id}
-                        className="rounded-xl border border-slate-100 bg-slate-50 p-4"
-                      >
-                        <p className="font-bold text-slate-800 mb-1 break-keep">{p.title}</p>
-                        <p className="text-slate-700 mb-2">{p.benefit}</p>
-                        <p className="text-xs text-slate-500">
-                          대상 {p.target_age} · 지역 {p.region}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                )}
+              </div>
 
-                <div>
-                  <p className="text-base font-bold text-slate-800 mb-3">
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <Badge variant="primary" size="sm">
                     교육 추천
-                  </p>
-                  <ul className="mt-2 space-y-2">
+                  </Badge>
+                  <p className="text-sm text-slate-600">업스킬·리스킬</p>
+                </div>
+                {recommendations ? (
+                  <div className="space-y-3">
                     {recommendations.educations.map((e) => (
-                      <li
+                      <div
                         key={e.id}
-                        className="rounded-xl border border-slate-100 bg-green-50 p-4"
+                        className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm"
                       >
-                        <p className="font-bold text-green-700 mb-1 break-keep">{e.title}</p>
-                        <p className="text-slate-700 mb-2">{e.summary}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="font-bold text-slate-900 break-keep">
+                          {e.title}
+                        </p>
+                        <p className="text-sm text-slate-700">{e.summary}</p>
+                        <p className="mt-1 text-xs text-slate-500">
                           {e.region} · {e.mode} · {e.duration} · {e.cost || ""}
                         </p>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                </div>
-
-                <button
-                  onClick={speakResults}
-                  disabled={readingResult}
-                  className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-lg font-bold text-white shadow-lg transition-transform hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {readingResult ? "음성 안내 중..." : "추천 음성으로 듣기"}
-                </button>
+                    {!recommendations.educations.length && (
+                      <p className="text-sm text-slate-500">
+                        조건에 맞는 교육을 찾지 못했습니다.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    교육 추천을 불러오는 중입니다...
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="mt-3 text-sm text-slate-500">
-                프로필 생성 후 맞춤 일자리·정책·교육을 보여드립니다.
-              </p>
-            )}
-          </div>
-        </section>
+            </div>
+          </Card>
+
+          {recommendations?.ragJobRecommendations &&
+          recommendations.ragJobRecommendations.length > 0 ? (
+            <Card className="glass border-white/60 shadow-lg">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-slate-900">
+                  벡터 기반 프로그램 추천
+                </h3>
+                <Badge variant="primary" size="sm">
+                  RAG
+                </Badge>
+              </div>
+              <div className="space-y-3">
+                {recommendations.ragJobRecommendations.map((rec, idx) => (
+                  <div
+                    key={rec.program.id}
+                    className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#2f4fa8]">
+                        {idx + 1}순위
+                      </span>
+                      <p className="text-sm text-slate-500">{rec.program.type}</p>
+                    </div>
+                    <p className="mt-2 text-lg font-bold text-slate-900 break-keep">
+                      {rec.program.title}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">{rec.reason}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {rec.program.region}
+                      {rec.program.benefits && ` · ${rec.program.benefits}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+        </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="relative min-h-screen overflow-hidden text-slate-900">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-10 -top-32 h-96 w-96 rounded-full bg-[#5d8df4]/14 blur-[120px]" />
+        <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-white/50 blur-[110px]" />
+      </div>
+
+      <header className="sticky top-0 z-20 bg-transparent">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#5d8df4] font-bold text-white shadow-lg shadow-[#5d8df4]/30">
+              R
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
+                Reborn
+              </p>
+              <p className="text-sm font-semibold text-slate-900">
+                시니어 커리어 내비게이션
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="hidden items-center gap-2 text-sm text-slate-500 sm:flex">
+              <span className="h-2 w-2 rounded-full bg-[#5d8df4]/90 shadow-[0_0_0_4px_rgba(93,141,244,0.15)]" />
+              <span>
+                {statusMsg ||
+                  (started
+                    ? "질문을 진행 중입니다."
+                    : "마이크 권한을 허용하고 시작하세요.")}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-28 overflow-hidden rounded-full bg-white/40 shadow-inner">
+                <div
+                  className="h-full rounded-full bg-[#5d8df4]"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="text-xs font-semibold text-slate-700">
+                {progressPercent}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="relative mx-auto max-w-6xl px-6 py-10">
+        {!started ? (
+          <LandingView />
+        ) : showResults ? (
+          <ResultsView />
+        ) : (
+          <InterviewView />
+        )}
+      </main>
     </div>
   );
 }
