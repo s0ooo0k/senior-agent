@@ -422,12 +422,12 @@ export default function Home() {
           음성만으로 인터뷰
         </div>
         <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
-          시니어 커리어 설계 <br></br>{" "}
+          AI 기반 <br></br>시니어 커리어 설계 <br></br>{" "}
           <span className="text-[#5d8df4]">음성</span>으로.
         </h1>
         <p className="text-lg leading-relaxed text-slate-600">
-          6개의 질문을 바탕으로 나만의 프로필 카드 생성 나에게 꼭 맞는 일자리
-          일자리·정책·교육을 추천합니다.
+          6개의 질문을 바탕으로 나만의 프로필 카드 생성
+          <br></br> 나에게 꼭 맞는 일자리·정책·교육을 추천합니다.
         </p>
         <div className="flex flex-wrap gap-3 text-sm">
           <Badge variant="primary">커리어 재시작</Badge>
