@@ -29,7 +29,7 @@ export async function ensureCollection() {
     console.log(`Creating collection: ${COLLECTION_NAME}`);
     await client.createCollection(COLLECTION_NAME, {
       vectors: {
-        size: 1536, // text-embedding-3-small 차원
+        size: 4096, // solar-embedding-1-large 차원
         distance: 'Cosine',
       },
     });

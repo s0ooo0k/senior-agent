@@ -8,6 +8,11 @@ type ParsedData = {
   timestamp: string;
   programs: ProgramItem[];
   savedTo: string;
+  qdrant?: {
+    total: number;
+    success: number;
+    failed: number;
+  };
 };
 
 export default function AdminPage() {
@@ -29,7 +34,7 @@ export default function AdminPage() {
     }
 
     setUploading(true);
-    setMessage('PDF 파싱 중...');
+    setMessage('PDF 파싱 및 임베딩 중... (시간이 걸릴 수 있습니다)');
     setParsedData(null);
 
     try {
@@ -48,7 +53,13 @@ export default function AdminPage() {
       }
 
       setParsedData(data);
-      setMessage('PDF 파싱 및 저장 완료!');
+      if (data.qdrant) {
+        setMessage(
+          `PDF 파싱 및 Qdrant 저장 완료! (${data.qdrant.success}/${data.qdrant.total}개 임베딩됨)`
+        );
+      } else {
+        setMessage('PDF 파싱 및 저장 완료!');
+      }
     } catch (error) {
       console.error(error);
       setMessage(
@@ -136,8 +147,8 @@ export default function AdminPage() {
             PDF 문서 업로드 및 파싱
           </h1>
           <p className="max-w-3xl text-lg text-slate-200/80">
-            PDF 파일을 업로드하면 Upstage Document Parser를 통해 자동으로 파싱하여
-            JSON 형식으로 저장합니다.
+            PDF 파일을 업로드하면 자동으로 프로그램을 추출하고, Upstage Solar
+            Embedding으로 임베딩하여 Qdrant Vector DB에 저장합니다.
           </p>
         </header>
 
@@ -237,24 +248,34 @@ export default function AdminPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">추출된 프로그램</h2>
-              <button
-                onClick={handleEmbedPrograms}
-                disabled={embedding}
-                className="rounded-full bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {embedding ? '임베딩 중...' : 'Qdrant에 저장'}
-              </button>
             </div>
 
-            {embeddingMessage && (
-              <div
-                className={`mb-4 rounded-xl p-4 ${
-                  embeddingMessage.includes('❌')
-                    ? 'bg-rose-500/20 text-rose-200'
-                    : 'bg-emerald-500/20 text-emerald-200'
-                }`}
-              >
-                <p className="text-sm">{embeddingMessage}</p>
+            {/* Qdrant 자동 저장 결과 */}
+            {parsedData.qdrant && (
+              <div className="mb-4 rounded-xl bg-emerald-500/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg
+                    className="h-5 w-5 text-emerald-300"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-emerald-200">
+                    Qdrant 자동 저장 완료
+                  </p>
+                </div>
+                <p className="text-sm text-emerald-100">
+                  {parsedData.qdrant.success}개 프로그램이 벡터 DB에 저장되었습니다
+                  {parsedData.qdrant.failed > 0 &&
+                    ` (실패: ${parsedData.qdrant.failed}개)`}
+                </p>
               </div>
             )}
 

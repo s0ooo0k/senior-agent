@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOpenAIClient, getOpenAIEmbeddingClient } from "@/lib/openai-client";
+import { getOpenAIClient, createUpstageEmbedding } from "@/lib/openai-client";
 import { getQdrantClient, COLLECTION_NAME } from "@/lib/qdrant-client";
 import {
   filterEducations,
@@ -70,104 +70,165 @@ export async function POST(req: Request) {
     }
 
     const client = getOpenAIClient();
-    const embeddingClient = getOpenAIEmbeddingClient();
     let programRecommendations: ProgramRecommendation[] = [];
 
-    // RAG 기반 추천 (Qdrant 벡터 검색)
+    // RAG 기반 추천 (Qdrant 벡터 검색 - 타입별로 검색)
     if (useRAG) {
       try {
         const qdrant = getQdrantClient();
-        const embeddingModel =
-          process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
 
         // 프로필을 쿼리 텍스트로 변환 및 임베딩
         const queryText = generateProfileQuery(profile);
-        const embeddingResponse = await embeddingClient.embeddings.create({
-          model: embeddingModel,
-          input: queryText,
-        });
 
-        const queryEmbedding = embeddingResponse.data[0].embedding;
+        // Upstage Solar Embedding 생성 (query 모드 - 검색용)
+        const queryEmbedding = await createUpstageEmbedding(queryText, 'query');
 
-        // Qdrant에서 벡터 검색
-        const searchResults = await qdrant.search(COLLECTION_NAME, {
-          vector: queryEmbedding,
-          limit: 15,
-          with_payload: true,
-        });
+        // 각 타입별로 검색 (job, policy, education)
+        const searchByType = async (type: string, limit: number = 10) => {
+          return await qdrant.search(COLLECTION_NAME, {
+            vector: queryEmbedding,
+            limit,
+            with_payload: true,
+            filter: {
+              must: [
+                {
+                  key: 'type',
+                  match: { value: type },
+                },
+              ],
+            },
+          });
+        };
 
-        if (searchResults.length > 0) {
-          // 검색 결과를 프로그램으로 변환
-          const programs = searchResults
-            .map((result) => ({
-              program: result.payload as unknown as ProgramItem,
-              score: result.score,
-            }))
-            .filter((p) => p.program && p.program.id);
+        // 병렬로 각 타입 검색
+        const [jobResults, policyResults, educationResults] = await Promise.all([
+          searchByType('job', 10),
+          searchByType('policy', 10),
+          searchByType('education', 10),
+        ]);
 
-          // LLM으로 리랭킹
-          const programTexts = programs
-            .map(
-              (p, idx) =>
-                `[${idx + 1}] ID: ${p.program.id}
+        // 각 타입별 결과를 프로그램으로 변환
+        const jobPrograms = jobResults
+          .map((result) => ({
+            program: result.payload as unknown as ProgramItem,
+            score: result.score,
+          }))
+          .filter((p) => p.program && p.program.id);
+
+        const policyPrograms = policyResults
+          .map((result) => ({
+            program: result.payload as unknown as ProgramItem,
+            score: result.score,
+          }))
+          .filter((p) => p.program && p.program.id);
+
+        const educationPrograms = educationResults
+          .map((result) => ({
+            program: result.payload as unknown as ProgramItem,
+            score: result.score,
+          }))
+          .filter((p) => p.program && p.program.id);
+
+        // 전체 프로그램 합치기 (리랭킹용)
+        const allPrograms = [...jobPrograms, ...policyPrograms, ...educationPrograms];
+
+        if (allPrograms.length > 0) {
+          // 각 타입별로 LLM 리랭킹 함수
+          const rerankByType = async (
+            programs: { program: ProgramItem; score: number }[],
+            typeName: string,
+            topN: number = 3
+          ): Promise<ProgramRecommendation[]> => {
+            if (programs.length === 0) return [];
+
+            const programTexts = programs
+              .map(
+                (p, idx) =>
+                  `[${idx + 1}] ID: ${p.program.original_id || p.program.id}
 제목: ${p.program.title}
-유형: ${p.program.type}
+유형: ${typeName}
 지역: ${p.program.region}
 설명: ${p.program.description || ''}
 혜택: ${p.program.benefits || ''}
 요건: ${p.program.requirements || ''}
 태그: ${p.program.tags?.join(', ') || ''}
-초기 점수: ${p.score.toFixed(3)}`,
-            )
-            .join('\n\n');
+초기 점수: ${p.score.toFixed(3)}`
+              )
+              .join('\n\n');
 
-          const rerankCompletion = await client.chat.completions.create({
-            model: process.env.OPENAI_LLM_MODEL ?? 'gpt-5',
-            response_format: { type: 'json_object' },
-            messages: [
-              {
-                role: 'system',
-                content: `당신은 시니어에게 맞는 프로그램(일자리, 정책, 교육)을 추천하는 전문가입니다.
-프로필과 후보 프로그램을 보고 최상위 ${topK}개를 선정하여 JSON으로 반환하세요.
+            const rerankCompletion = await client.chat.completions.create({
+              model: process.env.OPENAI_LLM_MODEL ?? 'gpt-5',
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `당신은 시니어에게 맞는 ${typeName}을(를) 추천하는 전문가입니다.
+프로필과 후보를 보고 최상위 ${topN}개를 선정하여 JSON으로 반환하세요.
 각 추천에는 id, score(0-1), reason(1-2문장)을 포함하세요.`,
-              },
-              {
-                role: 'user',
-                content: `프로필:
+                },
+                {
+                  role: 'user',
+                  content: `프로필:
 ${JSON.stringify(profile, null, 2)}
 
-후보 프로그램:
+후보 ${typeName}:
 ${programTexts}
 
-위 후보 중 최상위 ${topK}개를 JSON으로 반환하세요:
+위 후보 중 최상위 ${topN}개를 JSON으로 반환하세요:
 {
   "recommendations": [
     { "id": "...", "score": 0.95, "reason": "..." }
   ]
 }`,
-              },
-            ],
-          });
+                },
+              ],
+            });
 
-          const rerankContent = rerankCompletion.choices[0].message?.content;
-          if (rerankContent) {
-            const rerankParsed = JSON.parse(rerankContent) as {
-              recommendations: { id: string; score: number; reason: string }[];
-            };
+            const rerankContent = rerankCompletion.choices[0].message?.content;
+            if (!rerankContent) return [];
 
-            programRecommendations = rerankParsed.recommendations
-              ?.map((rec) => {
-                const match = programs.find((p) => p.program.id === rec.id);
-                return match
-                  ? {
-                      program: match.program,
-                      score: rec.score ?? match.score,
-                      reason: rec.reason ?? '',
-                    }
-                  : null;
-              })
-              .filter(Boolean) as ProgramRecommendation[];
-          }
+            try {
+              const rerankParsed = JSON.parse(rerankContent) as {
+                recommendations: { id: string; score: number; reason: string }[];
+              };
+
+              return (
+                rerankParsed.recommendations
+                  ?.map((rec) => {
+                    const match = programs.find(
+                      (p) =>
+                        p.program.id === rec.id ||
+                        p.program.original_id === rec.id
+                    );
+                    return match
+                      ? {
+                          program: match.program,
+                          score: rec.score ?? match.score,
+                          reason: rec.reason ?? '',
+                        }
+                      : null;
+                  })
+                  .filter(Boolean) as ProgramRecommendation[]
+              );
+            } catch (error) {
+              console.error('Failed to parse rerank result:', error);
+              return [];
+            }
+          };
+
+          // 각 타입별로 병렬 리랭킹
+          const [jobRecs, policyRecs, educationRecs] = await Promise.all([
+            rerankByType(jobPrograms, '일자리', 3),
+            rerankByType(policyPrograms, '정책', 3),
+            rerankByType(educationPrograms, '교육', 3),
+          ]);
+
+          // 타입별 추천 결과 저장
+          programRecommendations = [
+            ...jobRecs,
+            ...policyRecs,
+            ...educationRecs,
+          ];
         }
       } catch (error) {
         console.warn('[recommendations] RAG fallback to rule-based:', error);
@@ -240,11 +301,20 @@ ${programTexts}
     const matchedPolicies = filterPolicies(profile, policies, 3);
     const matchedEducations = filterEducations(profile, educations, 3);
 
-    // RAG 추천이 있으면 우선 사용, 없으면 기존 규칙 기반 추천 사용
+    // RAG 추천이 있으면 타입별로 분리하여 반환
     const finalRecommendations =
       programRecommendations.length > 0
         ? {
-            ragRecommendations: programRecommendations,
+            ragJobRecommendations: programRecommendations.filter(
+              (r) => r.program.type === 'job'
+            ),
+            ragPolicyRecommendations: programRecommendations.filter(
+              (r) => r.program.type === 'policy'
+            ),
+            ragEducationRecommendations: programRecommendations.filter(
+              (r) => r.program.type === 'education'
+            ),
+            // Fallback용 기존 추천도 포함
             jobRecommendations,
             policies: matchedPolicies,
             educations: matchedEducations,

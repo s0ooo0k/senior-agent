@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOpenAIEmbeddingClient } from '@/lib/openai-client';
+import { createUpstageEmbedding } from '@/lib/openai-client';
 import { ensureCollection, COLLECTION_NAME } from '@/lib/qdrant-client';
 import type { ProgramItem } from '@/types/domain';
 
@@ -27,12 +27,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // OpenAI 임베딩 클라이언트 및 Qdrant 초기화
-    const openai = getOpenAIEmbeddingClient();
+    // Qdrant 초기화
     const qdrant = await ensureCollection();
-
-    const embeddingModel =
-      process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
 
     // 각 프로그램을 임베딩
     const results = [];
@@ -43,13 +39,8 @@ export async function POST(request: NextRequest) {
         // Solar LLM으로 자연어 문장 생성
         const textContent = await generateProgramText(program, upstageApiKey);
 
-        // OpenAI 임베딩 생성
-        const embeddingResponse = await openai.embeddings.create({
-          model: embeddingModel,
-          input: textContent,
-        });
-
-        const embedding = embeddingResponse.data[0].embedding;
+        // Upstage Solar Embedding 생성 (passage 모드)
+        const embedding = await createUpstageEmbedding(textContent, 'passage');
 
         // Qdrant는 UUID나 정수 ID만 허용하므로 해시 생성
         const pointId = generateNumericId(program.id);
