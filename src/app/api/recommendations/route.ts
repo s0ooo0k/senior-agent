@@ -347,33 +347,95 @@ ${programTexts}
     const matchedPolicies = filterPolicies(profile, policies, 3);
     const matchedEducations = filterEducations(profile, educations, 3);
 
-    // RAG 추천이 있으면 타입별로 분리하여 반환
-    const finalRecommendations =
-      programRecommendations.length > 0
-        ? {
-            ragJobRecommendations: programRecommendations.filter(
-              (r) => r.program.type === 'job'
-            ),
-            ragPolicyRecommendations: programRecommendations.filter(
-              (r) => r.program.type === 'policy'
-            ),
-            ragEducationRecommendations: programRecommendations.filter(
-              (r) => r.program.type === 'education'
-            ),
-            // Fallback용 기존 추천도 포함
-            jobRecommendations,
-            policies: matchedPolicies,
-            educations: matchedEducations,
-            source: 'rag' as const,
-          }
-        : {
-            jobRecommendations,
-            policies: matchedPolicies,
-            educations: matchedEducations,
-            source: 'rule-based' as const,
-          };
+    // RAG 추천이 있으면 ProgramItem을 기존 형식으로 변환
+    let finalJobRecommendations = jobRecommendations;
+    let finalPolicyRecommendations = matchedPolicies;
+    let finalEducationRecommendations = matchedEducations;
+    let source: 'rag' | 'rule-based' = 'rule-based';
 
-    return NextResponse.json(finalRecommendations);
+    if (programRecommendations.length > 0) {
+      source = 'rag';
+
+      // RAG job 추천을 JobRecommendation 형식으로 변환
+      const ragJobRecs = programRecommendations.filter(r => r.program.type === 'job');
+      if (ragJobRecs.length > 0) {
+        finalJobRecommendations = ragJobRecs
+          .map(rec => {
+            // ProgramItem을 JobItem으로 변환
+            const jobItem: JobItem = {
+              id: rec.program.original_id || rec.program.id,
+              title: rec.program.title,
+              region: rec.program.region,
+              description: rec.program.description || '',
+              work_days: 0, // ProgramItem에는 없는 필드, 기본값
+              work_type: '',
+              activity_level: '중간',
+              posture: '',
+              min_salary: 0,
+              max_salary: 0,
+              social_level: '',
+              requires_digital: false,
+              tags: rec.program.tags || [],
+              deadline: rec.program.deadline || '',
+            };
+
+            return {
+              job: jobItem,
+              score: rec.score,
+              reason: rec.reason
+            };
+          });
+      }
+
+      // RAG policy 추천을 PolicyItem 형식으로 변환
+      const ragPolicyRecs = programRecommendations.filter(r => r.program.type === 'policy');
+      if (ragPolicyRecs.length > 0) {
+        finalPolicyRecommendations = ragPolicyRecs
+          .map(rec => {
+            const policyItem: PolicyItem = {
+              id: rec.program.original_id || rec.program.id,
+              title: rec.program.title,
+              region: rec.program.region,
+              target_age: rec.program.target_age || '',
+              benefit: rec.program.benefits || '',
+              description: rec.program.description || '',
+              link: rec.program.link,
+              deadline: rec.program.deadline,
+              tags: rec.program.tags,
+            };
+            return policyItem;
+          });
+      }
+
+      // RAG education 추천을 EducationItem 형식으로 변환
+      const ragEducationRecs = programRecommendations.filter(r => r.program.type === 'education');
+      if (ragEducationRecs.length > 0) {
+        finalEducationRecommendations = ragEducationRecs
+          .map(rec => {
+            const educationItem: EducationItem = {
+              id: rec.program.original_id || rec.program.id,
+              title: rec.program.title,
+              region: rec.program.region,
+              mode: '혼합' as const,
+              duration: rec.program.duration || '',
+              cost: rec.program.cost,
+              start_date: rec.program.start_date,
+              requires_digital: false,
+              tags: rec.program.tags || [],
+              summary: rec.program.description || '',
+              provider: rec.program.provider,
+            };
+            return educationItem;
+          });
+      }
+    }
+
+    return NextResponse.json({
+      jobRecommendations: finalJobRecommendations,
+      policies: finalPolicyRecommendations,
+      educations: finalEducationRecommendations,
+      source,
+    });
   } catch (error) {
     console.error("[recommendations] error", error);
     return NextResponse.json(

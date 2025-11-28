@@ -11,27 +11,14 @@ import type {
   PolicyItem,
   ProgramItem,
   SeniorProfile,
+  JobRecommendation,
+  ProgramRecommendation,
+  RecommendationResponse,
 } from "@/types/domain";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Badge from "@/components/Badge";
 import { ArrowRight, Mic, Sparkles, Volume2 } from "lucide-react";
-
-type JobRecommendation = { job: JobItem; score: number; reason: string };
-type ProgramRecommendation = {
-  program: ProgramItem;
-  score: number;
-  reason: string;
-};
-type RecommendationResponse = {
-  ragJobRecommendations?: ProgramRecommendation[];
-  ragPolicyRecommendations?: ProgramRecommendation[];
-  ragEducationRecommendations?: ProgramRecommendation[];
-  jobRecommendations: JobRecommendation[];
-  policies: PolicyItem[];
-  educations: EducationItem[];
-  source?: "rag" | "rule-based";
-};
 
 const initialAnswers = QUESTIONS.map(() => "");
 
@@ -687,21 +674,36 @@ export default function Home() {
                       {rec.reason}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-                        {rec.job.region}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-                        주 {rec.job.work_days}일
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-                        {rec.job.activity_level}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
-                        {rec.job.posture}
-                      </span>
-                      <span className="rounded-full bg-[#eef3ff] px-2.5 py-1 text-[#2f4fa8]">
-                        급여 {formatSalary(rec.job)}
-                      </span>
+                      {rec.job.region && (
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          {rec.job.region}
+                        </span>
+                      )}
+                      {rec.job.work_days > 0 && (
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          주 {rec.job.work_days}일
+                        </span>
+                      )}
+                      {rec.job.activity_level && (
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          {rec.job.activity_level}
+                        </span>
+                      )}
+                      {rec.job.posture && (
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          {rec.job.posture}
+                        </span>
+                      )}
+                      {(rec.job.min_salary > 0 || rec.job.max_salary > 0) && (
+                        <span className="rounded-full bg-[#eef3ff] px-2.5 py-1 text-[#2f4fa8]">
+                          급여 {formatSalary(rec.job)}
+                        </span>
+                      )}
+                      {rec.job.tags && rec.job.tags.length > 0 && rec.job.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-[#eef3ff] px-2.5 py-1 text-[#2f4fa8]">
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -789,44 +791,6 @@ export default function Home() {
             </div>
           </Card>
 
-          {recommendations?.ragJobRecommendations &&
-          recommendations.ragJobRecommendations.length > 0 ? (
-            <Card className="glass border-white/60 shadow-lg">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900">
-                  벡터 기반 프로그램 추천
-                </h3>
-                <Badge variant="primary" size="sm">
-                  RAG
-                </Badge>
-              </div>
-              <div className="space-y-3">
-                {recommendations.ragJobRecommendations.map((rec, idx) => (
-                  <div
-                    key={rec.program.id}
-                    className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#2f4fa8]">
-                        {idx + 1}순위
-                      </span>
-                      <p className="text-sm text-slate-500">
-                        {rec.program.type}
-                      </p>
-                    </div>
-                    <p className="mt-2 text-lg font-bold text-slate-900 break-keep">
-                      {rec.program.title}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-700">{rec.reason}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {rec.program.region}
-                      {rec.program.benefits && ` · ${rec.program.benefits}`}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          ) : null}
         </div>
       </div>
     </div>

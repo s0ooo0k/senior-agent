@@ -84,3 +84,22 @@ export interface ProgramItem {
   tags?: string[];
   provider?: string;
 }
+
+export interface JobRecommendation {
+  job: JobItem;
+  score: number;
+  reason: string;
+}
+
+export interface ProgramRecommendation {
+  program: ProgramItem;
+  score: number;
+  reason: string;
+}
+
+export interface RecommendationResponse {
+  jobRecommendations: JobRecommendation[];
+  policies: PolicyItem[];
+  educations: EducationItem[];
+  source?: "rag" | "rule-based";
+}
