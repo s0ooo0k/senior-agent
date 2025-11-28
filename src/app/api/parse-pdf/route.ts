@@ -178,58 +178,14 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    // Step 4: 자동으로 Qdrant에 임베딩 및 저장
-    const qdrant = await ensureCollection();
-    const embeddingResults = [];
-
-    for (const program of programsWithIds) {
-      try {
-        // Solar LLM으로 자연어 문장 생성
-        const textContent = await generateProgramText(program, upstageApiKey);
-
-        // Upstage Solar Embedding 생성 (passage 모드)
-        const embedding = await createUpstageEmbedding(textContent, 'passage');
-
-        // Qdrant에 저장
-        const pointId = generateNumericId(program.id);
-        await qdrant.upsert(COLLECTION_NAME, {
-          wait: true,
-          points: [
-            {
-              id: pointId,
-              vector: embedding,
-              payload: {
-                ...program,
-                original_id: program.id,
-                text_content: textContent,
-              },
-            },
-          ],
-        });
-
-        embeddingResults.push({ id: program.id, status: 'success' });
-      } catch (error) {
-        console.error(`Failed to embed program ${program.id}:`, error);
-        embeddingResults.push({
-          id: program.id,
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    const successCount = embeddingResults.filter((r) => r.status === 'success').length;
-
+    // 파싱된 마크다운도 함께 반환 (사용자 확인용)
     return NextResponse.json({
       filename: file.name,
       timestamp: new Date().toISOString(),
       programs: programsWithIds,
       savedTo: filename,
-      qdrant: {
-        total: programsWithIds.length,
-        success: successCount,
-        failed: programsWithIds.length - successCount,
-      },
+      markdown: markdownContent,
+      message: '파싱 완료! 내용을 확인하고 "저장" 버튼을 눌러주세요.',
     });
   } catch (error) {
     console.error('Error parsing PDF:', error);

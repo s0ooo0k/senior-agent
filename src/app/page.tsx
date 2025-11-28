@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { QUESTIONS } from "@/constants/questions";
 import type {
   AnswerMap,
@@ -61,7 +62,9 @@ async function playTts(text: string) {
     await audio.play();
   } catch (err) {
     console.error("오디오 재생 실패:", err);
-    throw new Error("오디오 재생이 차단되었습니다. 브라우저 설정을 확인해주세요.");
+    throw new Error(
+      "오디오 재생이 차단되었습니다. 브라우저 설정을 확인해주세요."
+    );
   }
 }
 
@@ -70,6 +73,7 @@ function formatSalary(job: JobItem) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<string[]>(initialAnswers);
@@ -91,14 +95,14 @@ export default function Home() {
 
   const answeredCount = useMemo(
     () => answers.filter((a) => a.trim()).length,
-    [answers],
+    [answers]
   );
   const totalQuestions = QUESTIONS.length;
   const currentQuestionSafe =
     QUESTIONS[Math.min(currentQuestion, totalQuestions - 1)];
   const progressPercent = Math.min(
     100,
-    Math.round((answeredCount / totalQuestions) * 100),
+    Math.round((answeredCount / totalQuestions) * 100)
   );
   const allAnswered = answeredCount >= totalQuestions;
   const showResults = started && allAnswered;
@@ -203,7 +207,7 @@ export default function Home() {
 
       setTimeout(() => {
         setCurrentQuestion((prev) =>
-          prev + 1 < totalQuestions ? prev + 1 : prev,
+          prev + 1 < totalQuestions ? prev + 1 : prev
         );
       }, 700);
     } catch (error) {
@@ -223,9 +227,7 @@ export default function Home() {
       }
       return next;
     });
-    setCurrentQuestion((prev) =>
-      prev + 1 < totalQuestions ? prev + 1 : prev,
-    );
+    setCurrentQuestion((prev) => (prev + 1 < totalQuestions ? prev + 1 : prev));
   };
 
   const generateProfile = async () => {
@@ -277,7 +279,7 @@ export default function Home() {
 
     recommendations.jobRecommendations.slice(0, 3).forEach((rec, idx) => {
       lines.push(
-        `${idx + 1}번, ${rec.job.title}. 이유: ${rec.reason || "적합도 높음"}`,
+        `${idx + 1}번, ${rec.job.title}. 이유: ${rec.reason || "적합도 높음"}`
       );
     });
     if (recommendations.policies.length) {
@@ -311,16 +313,17 @@ export default function Home() {
           음성만으로 인터뷰
         </div>
         <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
-          시니어 커리어 설계를 <span className="text-[#5d8df4]">음성</span>으로.
+          시니어 커리어 설계 <br></br>{" "}
+          <span className="text-[#5d8df4]">음성</span>으로.
         </h1>
         <p className="text-lg leading-relaxed text-slate-600">
-          10개의 질문에 답하면 프로필을 만들고 일자리·정책·교육을 추천합니다.
-          애플·토스처럼 군더더기 없이 깔끔한 인터뷰 경험을 제공합니다.
+          6개의 질문을 바탕으로 나만의 프로필 카드 생성 나에게 꼭 맞는 일자리
+          일자리·정책·교육을 추천합니다.
         </p>
         <div className="flex flex-wrap gap-3 text-sm">
-          <Badge variant="primary">10문항 인터뷰</Badge>
-          <Badge variant="secondary">STT/TTS 자동화</Badge>
-          <Badge variant="secondary">LLM 추천</Badge>
+          <Badge variant="primary">커리어 재시작</Badge>
+          <Badge variant="secondary">새로운 직업</Badge>
+          <Badge variant="secondary">미래 설계</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -334,15 +337,11 @@ export default function Home() {
           <Button
             variant="outline"
             size="md"
-            onClick={() => setStatusMsg("마이크 권한 허용 후 시작을 눌러주세요.")}
+            onClick={() => router.push("/browse")}
           >
-            흐름 살펴보기
+            공고 살펴보기
           </Button>
         </div>
-        <p className="text-sm text-slate-500">
-          부산·울산·경남 시니어 맞춤형. 마이크 권한만 허용하면 바로 사용할 수
-          있어요.
-        </p>
       </div>
 
       <div className="relative">
@@ -355,7 +354,8 @@ export default function Home() {
                 {QUESTIONS[0]}
               </p>
               <p className="mt-3 text-sm text-slate-500">
-                버튼만 누르면 질문을 읽어드리고, 말씀하신 내용을 자동으로 받아적습니다.
+                버튼만 누르면 질문을 읽어드리고, 말씀하신 내용을 자동으로
+                받아적습니다.
               </p>
             </div>
 
@@ -366,15 +366,13 @@ export default function Home() {
                   <Mic className="h-12 w-12" />
                 </div>
               </div>
-              <p className="text-sm text-slate-600">
-                애플·토스 감성의 큰 마이크 버튼으로 선명한 인터뷰 경험.
-              </p>
             </div>
 
             <div className="rounded-2xl bg-white p-4 shadow-md">
               <p className="text-sm font-semibold text-[#5d8df4]">목표</p>
               <p className="text-slate-800">
-                모든 질문이 끝나면 자동으로 프로필과 추천 리스트를 만들어 드립니다.
+                모든 질문이 끝나면 자동으로 프로필과 추천 리스트를 만들어
+                드립니다.
               </p>
             </div>
           </div>
@@ -441,7 +439,9 @@ export default function Home() {
               </div>
             </button>
             <p className="text-sm font-semibold text-slate-700">
-              {recording ? "녹음 중 · 눌러서 정지" : "버튼을 눌러 녹음을 시작하세요"}
+              {recording
+                ? "녹음 중 · 눌러서 정지"
+                : "버튼을 눌러 녹음을 시작하세요"}
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button
@@ -469,8 +469,8 @@ export default function Home() {
             {transcribing
               ? "음성 인식 중..."
               : recording
-                ? "녹음 중입니다."
-                : "녹음을 마치면 자동으로 다음 질문으로 이동합니다."}
+              ? "녹음 중입니다."
+              : "녹음을 마치면 자동으로 다음 질문으로 이동합니다."}
           </p>
         </div>
       </section>
@@ -561,9 +561,7 @@ export default function Home() {
               <h3 className="text-xl font-bold text-slate-900">일자리 Top 3</h3>
               {recommendations?.source && (
                 <Badge variant="primary" size="sm">
-                  {recommendations.source === "rag"
-                    ? "RAG 기반"
-                    : "규칙 기반"}
+                  {recommendations.source === "rag" ? "RAG 기반" : "규칙 기반"}
                 </Badge>
               )}
             </div>
@@ -720,7 +718,9 @@ export default function Home() {
                       <span className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-bold text-[#2f4fa8]">
                         {idx + 1}순위
                       </span>
-                      <p className="text-sm text-slate-500">{rec.program.type}</p>
+                      <p className="text-sm text-slate-500">
+                        {rec.program.type}
+                      </p>
                     </div>
                     <p className="mt-2 text-lg font-bold text-slate-900 break-keep">
                       {rec.program.title}
@@ -750,15 +750,12 @@ export default function Home() {
       <header className="sticky top-0 z-20 bg-transparent">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#5d8df4] font-bold text-white shadow-lg shadow-[#5d8df4]/30">
-              R
-            </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
-                Reborn
-              </p>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-xs font-semibold text-slate-500">
                 시니어 커리어 내비게이션
+              </p>
+              <p className="text-2xl font-bold uppercase tracking-tight text-[#5d8df4]">
+                Reborn
               </p>
             </div>
           </div>
@@ -788,7 +785,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-6xl px-6 py-10">
+      <main className="relative mx-auto max-w-6xl px-6 py-4">
         {!started ? (
           <LandingView />
         ) : showResults ? (

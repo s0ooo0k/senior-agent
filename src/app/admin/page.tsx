@@ -8,21 +8,20 @@ type ParsedData = {
   timestamp: string;
   programs: ProgramItem[];
   savedTo: string;
-  qdrant?: {
-    total: number;
-    success: number;
-    failed: number;
-  };
+  markdown?: string;
+  message?: string;
 };
 
 export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [embedding, setEmbedding] = useState(false);
-  const [embeddingMessage, setEmbeddingMessage] = useState('');
+  const [editedPrograms, setEditedPrograms] = useState<ProgramItem[]>([]);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
   const [embeddingStatic, setEmbeddingStatic] = useState(false);
   const [staticMessage, setStaticMessage] = useState('');
+  const [showMarkdown, setShowMarkdown] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,8 +33,9 @@ export default function AdminPage() {
     }
 
     setUploading(true);
-    setMessage('PDF 파싱 및 임베딩 중... (시간이 걸릴 수 있습니다)');
+    setMessage('PDF 파싱 중... (시간이 걸릴 수 있습니다)');
     setParsedData(null);
+    setConfirmMessage('');
 
     try {
       const formData = new FormData();
@@ -53,13 +53,8 @@ export default function AdminPage() {
       }
 
       setParsedData(data);
-      if (data.qdrant) {
-        setMessage(
-          `PDF 파싱 및 Qdrant 저장 완료! (${data.qdrant.success}/${data.qdrant.total}개 임베딩됨)`
-        );
-      } else {
-        setMessage('PDF 파싱 및 저장 완료!');
-      }
+      setEditedPrograms(data.programs || []);
+      setMessage(data.message || 'PDF 파싱 완료! 내용을 확인하고 저장하세요.');
     } catch (error) {
       console.error(error);
       setMessage(
@@ -70,39 +65,39 @@ export default function AdminPage() {
     }
   };
 
-  const handleEmbedPrograms = async () => {
-    if (!parsedData || !parsedData.programs) return;
+  const handleConfirmAndSave = async () => {
+    if (!editedPrograms || editedPrograms.length === 0) return;
 
-    setEmbedding(true);
-    setEmbeddingMessage('프로그램 임베딩 및 Qdrant 저장 중...');
+    setConfirming(true);
+    setConfirmMessage('Qdrant에 저장 중...');
 
     try {
-      const res = await fetch('/api/embed-programs', {
+      const res = await fetch('/api/confirm-programs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ programs: parsedData.programs }),
+        body: JSON.stringify({ programs: editedPrograms }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || '임베딩 실패');
+        throw new Error(data.error || 'Qdrant 저장 실패');
       }
 
-      setEmbeddingMessage(
-        `✅ ${data.success}개 프로그램이 Qdrant에 저장되었습니다!`
+      setConfirmMessage(
+        `✅ ${data.success}/${data.total}개 프로그램이 Qdrant에 저장되었습니다!`
       );
     } catch (error) {
       console.error(error);
-      setEmbeddingMessage(
+      setConfirmMessage(
         error instanceof Error
           ? `❌ ${error.message}`
-          : '❌ 임베딩에 실패했습니다.'
+          : '❌ Qdrant 저장에 실패했습니다.'
       );
     } finally {
-      setEmbedding(false);
+      setConfirming(false);
     }
   };
 
@@ -136,6 +131,12 @@ export default function AdminPage() {
     }
   };
 
+  const handleProgramEdit = (index: number, field: keyof ProgramItem, value: string) => {
+    const updated = [...editedPrograms];
+    (updated[index] as any)[field] = value;
+    setEditedPrograms(updated);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-10">
@@ -147,8 +148,8 @@ export default function AdminPage() {
             PDF 문서 업로드 및 파싱
           </h1>
           <p className="max-w-3xl text-lg text-slate-700 leading-relaxed">
-            PDF 파일을 업로드하면 Upstage Document Parser를 통해 자동으로 파싱하여
-            JSON 형식으로 저장합니다.
+            PDF 파일을 업로드하면 Upstage Document Parser를 통해 자동으로 파싱합니다.
+            파싱된 내용을 확인하고 수정한 후 Qdrant에 저장할 수 있습니다.
           </p>
         </header>
 
@@ -226,9 +227,9 @@ export default function AdminPage() {
             {message && (
               <div
                 className={`rounded-xl p-4 ${
-                  message.includes('실패') || message.includes('실패')
+                  message.includes('실패')
                     ? 'bg-red-100 text-red-700'
-                    : 'bg-green-100 text-green-700'
+                    : 'bg-blue-100 text-blue-700'
                 }`}
               >
                 <p className="text-sm font-medium">{message}</p>
@@ -245,45 +246,37 @@ export default function AdminPage() {
         </section>
 
         {parsedData && (
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg backdrop-blur">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">추출된 프로그램</h2>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">파싱 결과 확인</h2>
+              <button
+                onClick={() => setShowMarkdown(!showMarkdown)}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition"
+              >
+                {showMarkdown ? '마크다운 숨기기' : '원본 마크다운 보기'}
+              </button>
             </div>
 
-            {/* Qdrant 자동 저장 결과 */}
-            {parsedData.qdrant && (
-              <div className="mb-4 rounded-xl bg-emerald-500/10 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg
-                    className="h-5 w-5 text-emerald-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <p className="text-sm font-semibold text-emerald-200">
-                    Qdrant 자동 저장 완료
-                  </p>
+            {/* 마크다운 미리보기 */}
+            {showMarkdown && parsedData.markdown && (
+              <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-3">PDF → 마크다운 변환 결과</h3>
+                <div className="max-h-96 overflow-auto rounded-xl bg-white p-4 border border-slate-200">
+                  <pre className="text-xs text-slate-700 whitespace-pre-wrap break-words">
+                    {parsedData.markdown}
+                  </pre>
                 </div>
-                <p className="text-sm text-emerald-100">
-                  {parsedData.qdrant.success}개 프로그램이 벡터 DB에 저장되었습니다
-                  {parsedData.qdrant.failed > 0 &&
-                    ` (실패: ${parsedData.qdrant.failed}개)`}
-                </p>
               </div>
             )}
 
-            <div className="space-y-4">
+            {/* 프로그램 정보 */}
+            <div className="space-y-4 mb-6">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
                   <p className="text-sm font-medium text-slate-600">파일명</p>
-                  <p className="mt-1 font-mono text-sm text-slate-800">{parsedData.filename}</p>
+                  <p className="mt-1 font-mono text-sm text-slate-800">
+                    {parsedData.filename}
+                  </p>
                 </div>
 
                 <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
@@ -296,126 +289,155 @@ export default function AdminPage() {
 
               <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
                 <p className="text-sm font-bold text-blue-700 mb-2">
-                  총 {parsedData.programs.length}개 프로그램 발견
+                  총 {editedPrograms.length}개 프로그램 발견
                 </p>
                 <p className="text-xs text-slate-600 font-mono">
                   저장 위치: src/data/parsed/{parsedData.savedTo}
                 </p>
               </div>
+            </div>
 
-              <div className="space-y-3">
-                {parsedData.programs.map((program, idx) => (
-                  <div
-                    key={program.id}
-                    className="rounded-xl border border-slate-100 bg-slate-50 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                            {program.type}
-                          </span>
-                          <span className="text-xs text-slate-500">#{idx + 1}</span>
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-2 break-keep">
-                          {program.title}
-                        </h3>
-                        <p className="text-sm text-slate-700 mb-3 leading-relaxed break-keep">
-                          {program.description}
-                        </p>
+            {/* 프로그램 카드들 (수정 가능) */}
+            <div className="space-y-4 mb-6">
+              <h3 className="text-lg font-bold text-slate-800">
+                프로그램 상세 (수정 가능)
+              </h3>
+              {editedPrograms.map((program, idx) => (
+                <div
+                  key={program.id}
+                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                      {program.type}
+                    </span>
+                    <span className="text-xs text-slate-500">#{idx + 1}</span>
+                  </div>
 
-                        <div className="grid gap-2 text-sm">
-                          {program.region && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">지역:</span>
-                              <span className="text-slate-700">{program.region}</span>
-                            </div>
-                          )}
-                          {program.target_age && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">대상:</span>
-                              <span className="text-slate-700">{program.target_age}</span>
-                            </div>
-                          )}
-                          {program.benefits && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">혜택:</span>
-                              <span className="text-slate-700">{program.benefits}</span>
-                            </div>
-                          )}
-                          {program.duration && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">기간:</span>
-                              <span className="text-slate-700">{program.duration}</span>
-                            </div>
-                          )}
-                          {program.deadline && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">마감:</span>
-                              <span className="text-slate-700">{program.deadline}</span>
-                            </div>
-                          )}
-                          {program.cost && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">비용:</span>
-                              <span className="text-slate-700">{program.cost}</span>
-                            </div>
-                          )}
-                          {program.provider && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">제공:</span>
-                              <span className="text-slate-700">{program.provider}</span>
-                            </div>
-                          )}
-                          {program.contact && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">연락처:</span>
-                              <span className="text-slate-700">{program.contact}</span>
-                            </div>
-                          )}
-                          {program.link && (
-                            <div className="flex gap-2">
-                              <span className="font-medium text-slate-600 w-20">링크:</span>
-                              <a
-                                href={program.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
-                              >
-                                바로가기
-                              </a>
-                            </div>
-                          )}
-                          {program.tags && program.tags.length > 0 && (
-                            <div className="flex gap-2 mt-2">
-                              <span className="font-medium text-slate-600 w-20">태그:</span>
-                              <div className="flex flex-wrap gap-1">
-                                {program.tags.map((tag, tagIdx) => (
-                                  <span
-                                    key={tagIdx}
-                                    className="rounded-full bg-slate-200 text-slate-700 px-2 py-0.5 text-xs font-medium"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        제목
+                      </label>
+                      <input
+                        type="text"
+                        value={program.title}
+                        onChange={(e) => handleProgramEdit(idx, 'title', e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        설명
+                      </label>
+                      <textarea
+                        value={program.description || ''}
+                        onChange={(e) => handleProgramEdit(idx, 'description', e.target.value)}
+                        rows={3}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          지역
+                        </label>
+                        <input
+                          type="text"
+                          value={program.region}
+                          onChange={(e) => handleProgramEdit(idx, 'region', e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          대상 연령
+                        </label>
+                        <input
+                          type="text"
+                          value={program.target_age || ''}
+                          onChange={(e) => handleProgramEdit(idx, 'target_age', e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          혜택
+                        </label>
+                        <input
+                          type="text"
+                          value={program.benefits || ''}
+                          onChange={(e) => handleProgramEdit(idx, 'benefits', e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          기간
+                        </label>
+                        <input
+                          type="text"
+                          value={program.duration || ''}
+                          onChange={(e) => handleProgramEdit(idx, 'duration', e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          비용
+                        </label>
+                        <input
+                          type="text"
+                          value={program.cost || ''}
+                          onChange={(e) => handleProgramEdit(idx, 'cost', e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          제공 기관
+                        </label>
+                        <input
+                          type="text"
+                          value={program.provider || ''}
+                          onChange={(e) => handleProgramEdit(idx, 'provider', e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
 
-              <details className="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                <summary className="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900">
-                  원본 JSON 보기
-                </summary>
-                <pre className="mt-3 overflow-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
-                  {JSON.stringify(parsedData.programs, null, 2)}
-                </pre>
-              </details>
+            {/* 확인 및 저장 버튼 */}
+            <div className="sticky bottom-6 flex flex-col gap-3">
+              <button
+                onClick={handleConfirmAndSave}
+                disabled={confirming}
+                className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-lg font-bold text-white shadow-xl transition-all hover:shadow-2xl hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {confirming ? '저장 중...' : '✓ 확인 및 Qdrant에 저장'}
+              </button>
+
+              {confirmMessage && (
+                <div
+                  className={`rounded-xl p-4 ${
+                    confirmMessage.includes('❌')
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-green-100 text-green-700'
+                  }`}
+                >
+                  <p className="text-sm font-medium">{confirmMessage}</p>
+                </div>
+              )}
             </div>
           </section>
         )}
