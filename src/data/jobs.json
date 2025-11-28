@@ -17,8 +17,8 @@
   },
   {
     "id": "job_002",
-    "title": "울산 시니어 콜센터 상담보조",
-    "region": "울산 남구",
+    "title": "부산 시니어 콜센터 상담보조",
+    "region": "부산 남구",
     "work_days": 4,
     "work_type": "파트타임",
     "activity_level": "낮음",
@@ -33,8 +33,8 @@
   },
   {
     "id": "job_003",
-    "title": "김해시 도서관 자료정리 도우미",
-    "region": "경남 김해시",
+    "title": "부산광역시 도서관 자료정리 도우미",
+    "region": "부산광역시",
     "work_days": 3,
     "work_type": "파트타임",
     "activity_level": "낮음",

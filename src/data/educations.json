@@ -25,15 +25,15 @@
   },
   {
     "id": "edu_003",
-    "title": "울산 산업안전·현장 기본교육",
-    "region": "울산",
+    "title": "부산 산업안전·현장 기본교육",
+    "region": "부산",
     "mode": "오프라인",
     "duration": "1일 (6시간)",
     "cost": "무료",
     "requires_digital": false,
     "tags": ["안전", "현장", "체력중간"],
     "summary": "사업장 안전수칙, 보호구 착용, 근골격계 예방 스트레칭 실습.",
-    "provider": "울산 안전교육원"
+    "provider": "부산 안전교육원"
   },
   {
     "id": "edu_004",

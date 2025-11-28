@@ -48,5 +48,15 @@ export async function createUpstageEmbedding(
   }
 
   const data = await response.json();
-  return data.data[0].embedding;
+  const embedding = data.data[0].embedding;
+
+  if (!Array.isArray(embedding)) {
+    throw new Error('Embedding is not an array');
+  }
+
+  if (embedding.length !== 4096) {
+    throw new Error(`Embedding dimension mismatch: expected 4096, got ${embedding.length}`);
+  }
+
+  return embedding;
 }

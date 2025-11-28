@@ -79,13 +79,17 @@ export async function POST(req: Request) {
 
         // 프로필을 쿼리 텍스트로 변환 및 임베딩
         const queryText = generateProfileQuery(profile);
+        console.log('[RAG] Query text:', queryText);
 
         // Upstage Solar Embedding 생성 (query 모드 - 검색용)
+        console.log('[RAG] Creating query embedding...');
         const queryEmbedding = await createUpstageEmbedding(queryText, 'query');
+        console.log('[RAG] Query embedding created successfully, dimension:', queryEmbedding.length);
 
         // 각 타입별로 검색 (job, policy, education)
         const searchByType = async (type: string, limit: number = 10) => {
-          return await qdrant.search(COLLECTION_NAME, {
+          console.log(`[RAG] Searching for type: ${type}, limit: ${limit}`);
+          const searchParams = {
             vector: queryEmbedding,
             limit,
             with_payload: true,
@@ -97,15 +101,34 @@ export async function POST(req: Request) {
                 },
               ],
             },
-          });
+          };
+          console.log(`[RAG] Search params for ${type}:`, JSON.stringify(searchParams, null, 2).substring(0, 500));
+
+          try {
+            const results = await qdrant.search(COLLECTION_NAME, searchParams);
+            console.log(`[RAG] Search results for ${type}: ${results.length} items found`);
+            return results;
+          } catch (error) {
+            console.error(`[RAG] Search failed for ${type}:`, error);
+            // Qdrant 에러 상세 정보 출력
+            if (error && typeof error === 'object') {
+              console.error(`[RAG] Error details for ${type}:`, JSON.stringify(error, null, 2));
+              if ('data' in error) {
+                console.error(`[RAG] Error data for ${type}:`, JSON.stringify((error as any).data, null, 2));
+              }
+            }
+            throw error;
+          }
         };
 
         // 병렬로 각 타입 검색
+        console.log('[RAG] Starting parallel search for all types...');
         const [jobResults, policyResults, educationResults] = await Promise.all([
           searchByType('job', 10),
           searchByType('policy', 10),
           searchByType('education', 10),
         ]);
+        console.log(`[RAG] Parallel search completed - Jobs: ${jobResults.length}, Policies: ${policyResults.length}, Educations: ${educationResults.length}`);
 
         // 각 타입별 결과를 프로그램으로 변환
         const jobPrograms = jobResults
@@ -231,6 +254,29 @@ ${programTexts}
           ];
         }
       } catch (error) {
+        console.error('=== RAG ERROR DETAILS ===');
+        console.error('[RAG] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+        console.error('[RAG] Error message:', error instanceof Error ? error.message : String(error));
+
+        // 에러 객체 전체를 JSON으로 출력
+        if (error && typeof error === 'object') {
+          try {
+            const errorJson = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+            console.error('[RAG] Error as JSON:', errorJson);
+          } catch (e) {
+            console.error('[RAG] Could not stringify error');
+          }
+
+          if ('data' in error) {
+            console.error('[RAG] Error data:', JSON.stringify((error as any).data, null, 2));
+          }
+        }
+
+        console.error('[RAG] Full error:', error);
+        if (error instanceof Error && error.stack) {
+          console.error('[RAG] Stack trace:', error.stack);
+        }
+        console.error('=========================');
         console.warn('[recommendations] RAG fallback to rule-based:', error);
       }
     }
