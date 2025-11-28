@@ -466,21 +466,21 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative h-full min-h-[560px]">
+        <div className="relative h-full min-h-[340px] sm:min-h-[340px] lg:min-h-[340px] flex items-center justify-center lg:block">
           <Image
             src="/mascot-ribbon.png"
             alt="리본을 든 러닝 캐릭터"
             width={340}
             height={340}
             priority
-            className="absolute left-[-10%] top-[10%] drop-shadow-[0_40px_120px_-60px_rgba(69,110,220,0.45)]"
+            className="relative mx-auto w-64 sm:w-72 lg:w-[340px] h-auto lg:absolute lg:left-[-10%] lg:top-[10%] drop-shadow-[0_40px_120px_-60px_rgba(69,110,220,0.45)]"
           />
           <Image
             src="/mascot-run.png"
             alt="뛰는 캐릭터"
             width={340}
             height={340}
-            className="absolute right-[6%] top-[42%] hidden md:block scale-[0.96] drop-shadow-[0_32px_100px_-70px_rgba(69,110,220,0.45)]"
+            className="hidden lg:block absolute right-[6%] top-[42%] scale-[0.96] drop-shadow-[0_32px_100px_-70px_rgba(69,110,220,0.45)]"
           />
         </div>
       </div>
