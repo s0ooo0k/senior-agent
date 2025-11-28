@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  reborn_dev:
+    image: ghcr.io/paran-code/reborn:${TAG:-dev}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_KEY2=${OPENAI_API_KEY2}
+      - OPENAI_LLM_MODEL=${OPENAI_LLM_MODEL:-gpt-5}
+      - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-tts-1}
+      - OPENAI_STT_MODEL=${OPENAI_STT_MODEL:-whisper-1}
+      - UPSTAGE_API_KEY=${UPSTAGE_API_KEY}
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - DEFAULT_REGION=${DEFAULT_REGION:-부산}
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks: [web, backend]
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.reborn.rule=Host(`reborn.parancode.com`)
+        - traefik.http.routers.reborn.entrypoints=websecure
+        - traefik.http.routers.reborn.tls=true
+        - traefik.http.services.reborn.loadbalancer.server.port=3000
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.role == edge
+      restart_policy:
+        condition: any
+
+networks:
+  web:
+    external: true
+  backend:
+    external: true
