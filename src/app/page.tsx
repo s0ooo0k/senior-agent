@@ -846,14 +846,14 @@ export default function Home() {
       <header className="sticky top-0 z-20 bg-transparent">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
-            <div>
+            <button onClick={() => router.push("/")} className="cursor-pointer">
               <p className="text-xs font-semibold text-slate-500">
                 시니어 커리어 내비게이션
               </p>
               <p className="text-2xl font-bold uppercase tracking-tight text-[#5d8df4]">
                 Reborn
               </p>
-            </div>
+            </button>
           </div>
 
           <div className="flex items-center gap-4">

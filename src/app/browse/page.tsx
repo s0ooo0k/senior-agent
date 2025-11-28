@@ -69,25 +69,17 @@ export default function BrowsePage() {
         <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-white/50 blur-[110px]" />
       </div>
 
-      <header className="sticky top-0 z-20 bg-white/40 backdrop-blur-md border-b border-white/60">
+      <header className="sticky top-0 z-20 bg-transparent">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/")}
-              icon={<ArrowLeft className="h-4 w-4" />}
-            >
-              홈으로
-            </Button>
-            <div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/")} className="cursor-pointer">
               <p className="text-xs font-semibold text-slate-500">
                 시니어 커리어 내비게이션
               </p>
               <p className="text-2xl font-bold uppercase tracking-tight text-[#5d8df4]">
                 Reborn
               </p>
-            </div>
+            </button>
           </div>
         </div>
       </header>

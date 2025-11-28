@@ -11,6 +11,9 @@ const notoSansKr = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "리본(Reborn) – 시니어 커리어 내비게이션",
   description: "부울경 시니어를 위한 음성 기반 커리어 내비게이션 MVP",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
