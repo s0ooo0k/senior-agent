@@ -68,6 +68,7 @@ export default function Home() {
   const mediaChunksRef = useRef<Blob[]>([]);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsSessionRef = useRef(0);
+  const ttsAbortRef = useRef<AbortController | null>(null);
 
   const answeredCount = useMemo(
     () => answers.filter((a) => a.trim()).length,
@@ -85,6 +86,10 @@ export default function Home() {
 
   const cancelTtsPlayback = () => {
     ttsSessionRef.current += 1;
+    if (ttsAbortRef.current) {
+      ttsAbortRef.current.abort();
+      ttsAbortRef.current = null;
+    }
     const audio = ttsAudioRef.current;
     if (audio) {
       if (!audio.paused) {
@@ -103,12 +108,23 @@ export default function Home() {
   ): Promise<"ended" | "stopped" | "cancelled"> => {
     cancelTtsPlayback();
     const sessionId = ttsSessionRef.current;
+    const controller = new AbortController();
+    ttsAbortRef.current = controller;
 
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        return "cancelled";
+      }
+      throw err;
+    }
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -120,6 +136,15 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     ttsAudioRef.current = audio;
+    ttsAbortRef.current = null;
+
+    if (ttsSessionRef.current !== sessionId) {
+      if (audio.src.startsWith("blob:")) {
+        URL.revokeObjectURL(audio.src);
+      }
+      ttsAudioRef.current = null;
+      return "cancelled";
+    }
 
     const result = await new Promise<"ended" | "stopped">((resolve, reject) => {
       let cleaned = false;
@@ -131,6 +156,9 @@ export default function Home() {
         }
         if (ttsAudioRef.current === audio) {
           ttsAudioRef.current = null;
+        }
+        if (ttsAbortRef.current) {
+          ttsAbortRef.current = null;
         }
       };
 
@@ -394,12 +422,12 @@ export default function Home() {
           음성만으로 인터뷰
         </div>
         <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
-          AI 기반 <br></br>시니어 커리어 설계 <br></br>{" "}
+          시니어 커리어 설계 <br></br>{" "}
           <span className="text-[#5d8df4]">음성</span>으로.
         </h1>
         <p className="text-lg leading-relaxed text-slate-600">
-          6개의 질문을 바탕으로 나만의 프로필 카드 생성
-          <br></br> 나에게 꼭 맞는 일자리·정책·교육을 추천합니다.
+          6개의 질문을 바탕으로 나만의 프로필 카드 생성 나에게 꼭 맞는 일자리
+          일자리·정책·교육을 추천합니다.
         </p>
         <div className="flex flex-wrap gap-3 text-sm">
           <Badge variant="primary">커리어 재시작</Badge>
@@ -534,19 +562,26 @@ export default function Home() {
               >
                 질문 다시 듣기
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleManualAdvance}
+              >
+                건너뛰고 다음
+              </Button>
             </div>
             <p className="text-xs text-slate-500">
               {statusMsg || "녹음 버튼을 눌러 답변해주세요."}
             </p>
           </div>
-          {/* 
+
           <p className="mt-6 text-xs text-slate-500">
             {transcribing
               ? "음성 인식 중..."
               : recording
               ? "녹음 중입니다."
               : "녹음을 마치면 자동으로 다음 질문으로 이동합니다."}
-          </p> */}
+          </p>
         </div>
       </section>
     </div>
