@@ -41,33 +41,6 @@ function answersToMap(list: string[]): AnswerMap {
   }, {});
 }
 
-async function playTts(text: string) {
-  const res = await fetch("/api/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.error || "TTS API 호출 실패");
-  }
-
-  const arrayBuffer = await res.arrayBuffer();
-  const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-
-  try {
-    await audio.play();
-  } catch (err) {
-    console.error("오디오 재생 실패:", err);
-    throw new Error(
-      "오디오 재생이 차단되었습니다. 브라우저 설정을 확인해주세요."
-    );
-  }
-}
-
 function formatSalary(job: JobItem) {
   return `${job.min_salary.toLocaleString()} ~ ${job.max_salary.toLocaleString()}원`;
 }
@@ -89,9 +62,12 @@ export default function Home() {
     useState<RecommendationResponse | null>(null);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [readingResult, setReadingResult] = useState(false);
+  const [micDisabled, setMicDisabled] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsSessionRef = useRef(0);
 
   const answeredCount = useMemo(
     () => answers.filter((a) => a.trim()).length,
@@ -106,6 +82,94 @@ export default function Home() {
   );
   const allAnswered = answeredCount >= totalQuestions;
   const showResults = started && allAnswered;
+
+  const cancelTtsPlayback = () => {
+    ttsSessionRef.current += 1;
+    const audio = ttsAudioRef.current;
+    if (audio) {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      audio.currentTime = 0;
+      if (audio.src.startsWith("blob:")) {
+        URL.revokeObjectURL(audio.src);
+      }
+    }
+    ttsAudioRef.current = null;
+  };
+
+  const playTts = async (
+    text: string
+  ): Promise<"ended" | "stopped" | "cancelled"> => {
+    cancelTtsPlayback();
+    const sessionId = ttsSessionRef.current;
+
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "TTS API 호출 실패");
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    ttsAudioRef.current = audio;
+
+    const result = await new Promise<"ended" | "stopped">(
+      (resolve, reject) => {
+        let cleaned = false;
+        const cleanup = () => {
+          if (cleaned) return;
+          cleaned = true;
+          if (audio.src.startsWith("blob:")) {
+            URL.revokeObjectURL(audio.src);
+          }
+          if (ttsAudioRef.current === audio) {
+            ttsAudioRef.current = null;
+          }
+        };
+
+        audio.onended = () => {
+          cleanup();
+          resolve("ended");
+        };
+
+        audio.onpause = () => {
+          if (audio.ended) return;
+          cleanup();
+          resolve("stopped");
+        };
+
+        audio.onerror = (e) => {
+          cleanup();
+          reject(e);
+        };
+
+        audio.play().catch((err) => {
+          cleanup();
+          reject(err);
+        });
+      }
+    );
+
+    if (ttsSessionRef.current !== sessionId) {
+      return "cancelled";
+    }
+
+    return result;
+  };
+
+  useEffect(() => {
+    return () => {
+      cancelTtsPlayback();
+    };
+  }, []);
 
   useEffect(() => {
     if (started && currentQuestion < totalQuestions) {
@@ -135,9 +199,11 @@ export default function Home() {
     setVoiceStatus("speaking");
     setStatusMsg("질문을 읽는 중...");
     try {
-      await playTts(text);
-      setVoiceStatus("idle");
-      setStatusMsg("녹음 버튼을 눌러 답변해주세요.");
+      const result = await playTts(text);
+      if (result === "ended" || result === "stopped") {
+        setVoiceStatus("idle");
+        setStatusMsg("녹음 버튼을 눌러 답변해주세요.");
+      }
     } catch (error) {
       console.error("TTS 에러:", error);
       setVoiceStatus("idle");
@@ -146,7 +212,8 @@ export default function Home() {
   };
 
   const startRecording = async () => {
-    if (recording) return;
+    if (recording || micDisabled || transcribing || voiceStatus === "processing") return;
+    cancelTtsPlayback();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -178,13 +245,16 @@ export default function Home() {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && recording) {
+      setMicDisabled(true);
       mediaRecorderRef.current.stop();
       setRecording(false);
       setVoiceStatus("processing");
+      setStatusMsg("음성을 처리하는 중입니다. 잠시만 기다려주세요.");
     }
   };
 
   const handleTranscription = async (blob: Blob) => {
+    setMicDisabled(true);
     setTranscribing(true);
     setVoiceStatus("processing");
     setStatusMsg("음성을 텍스트로 변환 중...");
@@ -197,6 +267,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || "STT 실패");
 
       const text = data.text as string;
+      console.info("[client] STT result:", text);
       setAnswers((prev) => {
         const next = [...prev];
         next[currentQuestion] = text || "(빈 응답)";
@@ -206,14 +277,17 @@ export default function Home() {
       setStatusMsg("음성 인식 완료! 잠시 후 다음 질문으로 넘어갑니다.");
 
       setTimeout(() => {
-        setCurrentQuestion((prev) =>
-          prev + 1 < totalQuestions ? prev + 1 : prev
-        );
+        setCurrentQuestion((prev) => {
+          const next = prev + 1 < totalQuestions ? prev + 1 : prev;
+          return next;
+        });
+        setMicDisabled(false);
       }, 700);
     } catch (error) {
       console.error(error);
       setVoiceStatus("idle");
       setStatusMsg("음성 인식에 실패했습니다. 다시 녹음해주세요.");
+      setMicDisabled(false);
     } finally {
       setTranscribing(false);
     }
@@ -271,6 +345,9 @@ export default function Home() {
       setLoadingRecs(false);
     }
   };
+
+  const micButtonDisabled =
+    !recording && (micDisabled || transcribing || voiceStatus === "processing");
 
   const speakResults = async () => {
     if (!recommendations) return;
@@ -422,12 +499,13 @@ export default function Home() {
 
           <div className="mt-8 flex flex-col items-center gap-5">
             <button
+              disabled={micButtonDisabled}
               onClick={recording ? stopRecording : startRecording}
               className={`group relative h-32 w-32 rounded-full text-white shadow-[0_22px_70px_-35px_rgba(93,141,244,0.9)] transition-all duration-200 ${
                 recording
                   ? "bg-gradient-to-br from-[#ff6b6b] to-[#ff9671]"
                   : "bg-[#5d8df4]"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none`}
               aria-label={recording ? "녹음 정지" : "녹음 시작"}
             >
               <span

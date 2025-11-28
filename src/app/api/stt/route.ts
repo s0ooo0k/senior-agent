@@ -25,6 +25,8 @@ export async function POST(req: Request) {
       temperature: 0.2,
     });
 
+    console.info("[stt] transcription:", transcription.text);
+
     return NextResponse.json({ text: transcription.text });
   } catch (error) {
     console.error("[stt] error", error);
