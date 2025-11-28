@@ -17,7 +17,7 @@
    - `OPENAI_API_KEY` : 필수
    - `OPENAI_LLM_MODEL` : 기본 `gpt-5`
    - `OPENAI_STT_MODEL` : 기본 `whisper-1`
-   - `OPENAI_TTS_MODEL` : 기본 `tts-1`
+  - `OPENAI_TTS_MODEL` : 기본 `gpt-4o-mini-tts`
    - `DEFAULT_REGION` : 지역 단서 없을 때 사용할 기본값(기본 부산)
 
 2) 로컬 개발 서버
