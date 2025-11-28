@@ -3,7 +3,7 @@ import type { AnswerMap, JobItem, SeniorProfile } from "@/types/domain";
 
 export const profileSystemPrompt = `
 너는 부산·울산·경남 시니어(60-69세)의 커리어 내비게이터다.
-아래 답변 10개를 읽고 프로필 JSON을 정확히 생성해라.
+아래 답변 6개를 읽고 프로필 JSON을 정확히 생성해라.
 - 반드시 JSON만 출력한다.
 - 숫자/범위는 최대한 구체적으로 적는다.
 - weekly_work_days는 숫자만 적는다.
@@ -12,7 +12,7 @@ export const profileSystemPrompt = `
 export function buildProfileUserPrompt(answers: AnswerMap) {
   const qa = QUESTIONS.map((q, idx) => `Q${idx + 1}: ${q}\nA${idx + 1}: ${answers[`q${idx + 1}`] ?? ""}`).join("\n\n");
   return `
-다음은 사용자의 10개 답변이다.
+다음은 사용자의 6개 답변이다.
 
 ${qa}
 
