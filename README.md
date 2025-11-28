@@ -45,3 +45,8 @@
 ## 주의
 - 브라우저의 마이크 권한이 필요합니다.
 - 실제 OpenAI API 키가 필요하며, 과금이 발생할 수 있습니다.
+
+## docker build
+```bash
+docker buildx build -t ghcr.io/paran-code/reborn:dev . --push
+```
