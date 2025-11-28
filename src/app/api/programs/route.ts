@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import type { JobItem, PolicyItem, EducationItem, ProgramItem } from '@/types/domain';
+import { readdir, readFile } from 'fs/promises';
+import { join } from 'path';
+import type {
+  JobItem,
+  PolicyItem,
+  EducationItem,
+  ProgramItem,
+} from '@/types/domain';
 
 import jobsData from '@/data/jobs.json';
 import policiesData from '@/data/policies.json';
@@ -57,11 +64,36 @@ export async function GET() {
     const policies = policiesData as PolicyItem[];
     const educations = educationsData as EducationItem[];
 
+    // parsed 디렉토리의 프로그램 불러오기
+    const parsedDir = join(process.cwd(), 'src', 'data', 'parsed');
+    let parsedPrograms: ProgramItem[] = [];
+
+    try {
+      const files = await readdir(parsedDir);
+      const jsonFiles = files.filter((file) => file.endsWith('.json'));
+
+      for (const file of jsonFiles) {
+        try {
+          const content = await readFile(join(parsedDir, file), 'utf-8');
+          const parsed = JSON.parse(content) as { programs?: ProgramItem[] };
+          if (Array.isArray(parsed.programs)) {
+            parsedPrograms.push(...parsed.programs);
+          }
+        } catch (err) {
+          console.error(`Failed to read parsed file ${file}:`, err);
+        }
+      }
+    } catch (err) {
+      // parsed 폴더가 없거나 접근 실패해도 나머지 데이터는 반환
+      console.warn('No parsed directory or unable to read parsed files:', err);
+    }
+
     // 모든 데이터를 ProgramItem 형식으로 변환
     const allPrograms: ProgramItem[] = [
       ...jobs.map(jobToProgram),
       ...policies.map(policyToProgram),
       ...educations.map(educationToProgram),
+      ...parsedPrograms,
     ];
 
     return NextResponse.json({
@@ -70,6 +102,7 @@ export async function GET() {
         jobs: jobs.length,
         policies: policies.length,
         educations: educations.length,
+        parsed: parsedPrograms.length,
       },
       programs: allPrograms,
     });
