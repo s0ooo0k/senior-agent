@@ -549,7 +549,11 @@ export default function Home() {
               </div>
             </button>
             <p className="text-sm font-semibold text-slate-700">
-              {recording
+              {voiceStatus === "speaking"
+                ? "질문 읽는 중..."
+                : transcribing
+                ? "음성 인식 중..."
+                : recording
                 ? "녹음 중 · 눌러서 정지"
                 : "버튼을 눌러 녹음을 시작하세요"}
             </p>
@@ -562,26 +566,8 @@ export default function Home() {
               >
                 질문 다시 듣기
               </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleManualAdvance}
-              >
-                건너뛰고 다음
-              </Button>
             </div>
-            <p className="text-xs text-slate-500">
-              {statusMsg || "녹음 버튼을 눌러 답변해주세요."}
-            </p>
           </div>
-
-          <p className="mt-6 text-xs text-slate-500">
-            {transcribing
-              ? "음성 인식 중..."
-              : recording
-              ? "녹음 중입니다."
-              : "녹음을 마치면 자동으로 다음 질문으로 이동합니다."}
-          </p>
         </div>
       </section>
     </div>
